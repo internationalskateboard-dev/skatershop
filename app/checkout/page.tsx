@@ -6,8 +6,8 @@
  * - Formulario de envío y contacto (validación básica).
  * - Resumen con miniaturas, tallas y subtotales.
  * - PayPal sandbox (clientId: "test") activado sólo si el formulario está completo.
- * - Botones: "Vaciar carrito" (rojo) y "Seguir comprando".
  * - Registra ventas y reduce stock al aprobar el pago.
+ * - Usa el mismo placeholder global que la tienda.
  */
 
 import { useState } from "react";
@@ -18,9 +18,10 @@ import useSalesStore from "@/store/salesStore";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import Image from "next/image";
 import Link from "next/link";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 
 export default function CheckoutPage() {
-  const { cart, clearCart, total } = useCartStore();
+  const { cart, clearCart } = useCartStore();
   const reduceStockBatch = useProductStore((s) => s.reduceStockBatch);
   const addSaleBatch = useSalesStore((s) => s.addSaleBatch);
 
@@ -49,9 +50,12 @@ export default function CheckoutPage() {
     setShipping({ ...shipping, [e.target.name]: e.target.value });
   };
 
-  // Totales
+  // Totales seguros
   const itemsTotal = cart
-    .reduce((acc, it) => acc + it.price * it.qty, 0)
+    .reduce(
+      (acc, it) => acc + Number(it.price ?? 0) * it.qty,
+      0
+    )
     .toFixed(2);
 
   const shippingCost = "0.00";
@@ -66,23 +70,28 @@ export default function CheckoutPage() {
   return (
     <ClientOnly>
       <div className="text-white">
-        {/* Header + Vaciar carrito */}
+        {/* Header + Vaciar carrito (lo dejas comentado, como tenías) */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Checkout</h2>
 
-           {/* cart.length > 0 && !paid && (
+          {/* 
+          {cart.length > 0 && !paid && (
             <button
               onClick={clearCart}
               className="text-xs font-semibold bg-red-500/20 border border-red-500/40 text-red-400 px-3 py-2 rounded-lg hover:bg-red-500/30 hover:text-red-300 transition"
             >
               Vaciar carrito
             </button>
-          )*/}
+          )}
+          */}
         </div>
 
+        {/* ✅ Pago completado */}
         {paid ? (
           <div className="bg-green-700/20 border border-green-600 rounded-xl p-6">
-            <h3 className="text-xl font-bold text-green-400">✅ Pago completado</h3>
+            <h3 className="text-xl font-bold text-green-400">
+              ✅ Pago completado
+            </h3>
             <p className="text-neutral-300 text-sm mt-2">
               Gracias por tu compra. Te contactaremos para coordinar el envío.
             </p>
@@ -96,6 +105,7 @@ export default function CheckoutPage() {
             </div>
           </div>
         ) : cart.length === 0 ? (
+          // 🛒 Carrito vacío
           <div className="text-center py-10">
             <p className="text-neutral-400 mb-6">
               No hay productos en tu pedido.
@@ -108,7 +118,7 @@ export default function CheckoutPage() {
             </Link>
           </div>
         ) : (
-          // Grid principal: formulario + resumen
+          // 🧱 Grid principal: formulario + resumen
           <div className="grid md:grid-cols-2 gap-10">
             {/* ------- Envío & Contacto ------- */}
             <section>
@@ -166,17 +176,9 @@ export default function CheckoutPage() {
               )}
 
               <p className="text-neutral-500 text-xs mt-4">
-                Usamos estos datos únicamente para enviar tu pedido y contactarte
-                si hiciera falta.
+                Usamos estos datos únicamente para enviar tu pedido y
+                contactarte si hiciera falta.
               </p>
-
-              {/* CTA seguir comprando (también aquí) 
-              <Link
-                href="/shop"
-                className="inline-block mt-6 bg-neutral-800 border border-neutral-700 text-neutral-200 font-semibold py-3 px-5 rounded-xl hover:border-yellow-400 hover:text-yellow-400 transition"
-              >
-                Seguir comprando
-              </Link>*/}
             </section>
 
             {/* ------- Resumen & Pago ------- */}
@@ -185,53 +187,48 @@ export default function CheckoutPage() {
 
               {/* Lista de items */}
               <ul className="space-y-3 text-sm">
-                {cart.map((it) => (
-                  <li
-                    key={it.id}
-                    className="flex items-start justify-between border-b border-neutral-800 pb-3"
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Miniatura */}
-                      <div className="w-14 h-14 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
-                        {it.image ? (
+                {cart.map((it) => {
+                  const unitPrice = Number(it.price ?? 0);
+                  const lineTotal = unitPrice * it.qty;
+
+                  return (
+                    <li
+                      key={it.id}
+                      className="flex items-start justify-between border-b border-neutral-800 pb-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Miniatura */}
+                        <div className="w-14 h-14 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
                           <Image
-                            src={
-                              typeof it.image === "string"
-                                ? it.image
-                                : "/images/placeholder.png"
-                            }
+                            src={it.image || PRODUCT_PLACEHOLDER_IMAGE}
                             alt={it.name ?? "producto"}
                             width={56}
                             height={56}
                             className="w-full h-full object-cover"
                           />
-                        ) : (
-                          <span className="text-[10px] text-neutral-600 text-center leading-tight px-1">
-                            sin imagen
-                          </span>
-                        )}
-                      </div>
+                        </div>
 
-                      <div>
-                        <p className="font-semibold text-white leading-snug">
-                          {it.name}
-                        </p>
-                        {it.size && (
-                          <p className="text-[12px] text-neutral-400 leading-snug">
-                            Talla: {it.size}
+                        <div>
+                          <p className="font-semibold text-white leading-snug">
+                            {it.name}
                           </p>
-                        )}
-                        <p className="text-neutral-500 text-[12px] leading-snug">
-                          {it.qty} × €{it.price.toFixed(2)}
-                        </p>
+                          {it.size && (
+                            <p className="text-[12px] text-neutral-400 leading-snug">
+                              Talla: {it.size}
+                            </p>
+                          )}
+                          <p className="text-neutral-500 text-[12px] leading-snug">
+                            {it.qty} × €{unitPrice.toFixed(2)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="text-right text-yellow-400 font-semibold text-sm">
-                      €{(it.price * it.qty).toFixed(2)}
-                    </div>
-                  </li>
-                ))}
+                      <div className="text-right text-yellow-400 font-semibold text-sm">
+                        €{lineTotal.toFixed(2)}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
 
               {/* Totales */}
@@ -267,14 +264,19 @@ export default function CheckoutPage() {
                       style={{ layout: "vertical" }}
                       createOrder={(data, actions) => {
                         if (!actions?.order) {
-                          return Promise.reject("PayPal order no disponible");
+                          return Promise.reject(
+                            "PayPal order no disponible"
+                          );
                         }
 
-                        // 🔎 (Opcional) Validación de stock local antes de crear la orden
+                        // 🔎 Validación de stock local antes de crear la orden
                         const productStore = useProductStore.getState();
                         const outOfStock: string[] = [];
+
                         cart.forEach((it) => {
-                          const p = productStore.products.find((x) => x.id === it.id);
+                          const p = productStore.products.find(
+                            (x) => x.id === it.id
+                          );
                           const stock = p?.stock ?? Infinity;
                           if (it.qty > stock) {
                             outOfStock.push(
@@ -291,12 +293,14 @@ export default function CheckoutPage() {
                           throw new Error("Stock insuficiente");
                         }
 
-                        // Items PayPal (nota: PayPal no usa talla nativamente)
+                        // Items PayPal (incluimos talla en el nombre si existe)
                         const items = cart.map((it) => ({
-                          name: it.size ? `${it.name} - Talla ${it.size}` : it.name,
+                          name: it.size
+                            ? `${it.name} - Talla ${it.size}`
+                            : it.name,
                           unit_amount: {
                             currency_code: "EUR",
-                            value: it.price.toFixed(2),
+                            value: Number(it.price ?? 0).toFixed(2),
                           },
                           quantity: it.qty.toString(),
                         }));
@@ -335,7 +339,7 @@ export default function CheckoutPage() {
 
                           // Construir lote de ventas y de reducción de stock
                           const batch = cart.map((it) => ({
-                            productId: it.id, // si luego usas baseId, ajústalo aquí
+                            productId: it.id,
                             qty: it.qty,
                           }));
 
