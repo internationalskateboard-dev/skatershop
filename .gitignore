@@ -1,1 +1,46 @@
-node_modules
+# ----------------------------------------
+# Node / Next.js
+# ----------------------------------------
+node_modules/
+.next/
+.next/
+.next/cache/
+.next/cache/**
+
+# Turbo / monorepo builds (si llegas a usarlo)
+.turbo/
+
+# Salidas de build
+out/
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Coverage / pruebas
+coverage/
+
+# Storybook (por si lo metemos luego)
+.storybook-out/
+
+# Imágenes temporales o de admin en local
+public/uploads-temp/
