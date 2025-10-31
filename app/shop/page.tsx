@@ -2,19 +2,24 @@
  * ShopPage
  * ------------------------------------------------------------
  * Página principal de la tienda / catálogo.
- * 
+ *
  * ✅ Qué hace:
  * - Muestra todos los productos disponibles combinando:
  *    → Los creados por el admin (productStore)
  *    → Los productos base precargados (lib/productsBase)
  * - Cada producto se muestra con <ProductCard />.
  * - Permite acceder al carrito o al detalle de producto.
- * 
+ *
  * 💡 Contexto:
  * - Esta es la página vinculada a la ruta `/shop`.
  * - Sustituye la antigua `/products` como catálogo principal.
  * - Usa `ClientOnly` para evitar errores de SSR,
  *   ya que `useCartStore` y `useMergedProducts` viven en el cliente.
+ *
+ * 🧠 Mejoras de esta versión:
+ * - Tipado básico del producto en el map (sin `any` implícito).
+ * - Se mantiene coherencia con la constante de imagen placeholder global.
+ * - Preparada para futuras paginaciones o filtros en cliente.
  */
 
 "use client";
@@ -24,13 +29,24 @@ import ClientOnly from "@/components/layout/ClientOnly";
 import ProductCard from "@/components/ui/ProductCard";
 import useCartStore from "@/store/cartStore";
 import useMergedProducts from "@/lib/useMergedProducts";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
+
+// Tipado mínimo del producto que viene del hook useMergedProducts
+type ShopProduct = {
+  id: string;
+  name: string;
+  price: number | string;
+  desc?: string;
+  image?: string;
+  sizes?: string[];
+};
 
 export default function ShopPage() {
   // Estado global del carrito (Zustand)
   const cartCount = useCartStore((s) => s.countItems());
 
   // Productos combinados: admin + base
-  const { products } = useMergedProducts();
+  const { products } = useMergedProducts() as { products: ShopProduct[] };
 
   return (
     <ClientOnly>
@@ -63,7 +79,14 @@ export default function ShopPage() {
         ) : (
           <section className="grid md:grid-cols-2 gap-6 mt-10">
             {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard
+                key={p.id}
+                product={{
+                  ...p,
+                  // fallback seguro de imagen
+                  image: p.image || PRODUCT_PLACEHOLDER_IMAGE,
+                }}
+              />
             ))}
           </section>
         )}
