@@ -1,14 +1,11 @@
+"use client";
+
 /**
  * store/productStore.ts
  * ------------------------------------------------------------
- * Store de productos creados desde el admin (en memoria + persistencia).
- * - Guarda productos del admin.
- * - Permite añadir/editar.
- * - Permite reducir stock en batch (se llama desde checkout).
- * - Usa tipos compartidos de lib/types.
+ * Store de productos en memoria (admin).
+ * Ahora reexporta el tipo Product para compatibilidad.
  */
-
-"use client";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -29,10 +26,6 @@ const useProductStore = create<ProductState>()(
     (set, get) => ({
       products: [],
 
-      /**
-       * Añadir producto desde admin.
-       * Si ya existe un producto con el mismo id, lo sobreescribimos.
-       */
       addProduct: (p) =>
         set((state) => {
           const exists = state.products.find((x) => x.id === p.id);
@@ -43,14 +36,9 @@ const useProductStore = create<ProductState>()(
               ),
             };
           }
-          return {
-            products: [...state.products, p],
-          };
+          return { products: [...state.products, p] };
         }),
 
-      /**
-       * Actualizar un producto por id.
-       */
       updateProduct: (id, data) =>
         set((state) => ({
           products: state.products.map((p) =>
@@ -58,56 +46,35 @@ const useProductStore = create<ProductState>()(
           ),
         })),
 
-      /**
-       * Eliminar producto
-       * (se suele bloquear si tiene ventas → ver markLocked)
-       */
       deleteProduct: (id) =>
         set((state) => ({
           products: state.products.filter((p) => p.id !== id),
         })),
 
-      /**
-       * Reducir stock en batch
-       * - batch viene del checkout: [{ productId, qty, size? }, ...]
-       * - si un producto no tiene stock definido → lo dejamos igual
-       */
       reduceStockBatch: (batch) =>
         set((state) => {
           if (!Array.isArray(batch) || batch.length === 0) {
             return { products: state.products };
           }
 
-          const mapById = new Map<string, number>();
+          const reduceMap = new Map<string, number>();
           batch.forEach((item) => {
-            const prev = mapById.get(item.productId) ?? 0;
-            mapById.set(item.productId, prev + item.qty);
+            reduceMap.set(
+              item.productId,
+              (reduceMap.get(item.productId) ?? 0) + item.qty
+            );
           });
 
           return {
             products: state.products.map((p) => {
-              // si el producto no está en el batch, lo dejamos igual
-              if (!mapById.has(p.id)) return p;
-
-              const toReduce = mapById.get(p.id) ?? 0;
-
-              // si no tenía stock → lo dejamos sin tocar
-              if (typeof p.stock !== "number") {
-                return p;
-              }
-
-              const newStock = Math.max(0, p.stock - toReduce);
-              return {
-                ...p,
-                stock: newStock,
-              };
+              const toReduce = reduceMap.get(p.id);
+              if (!toReduce) return p;
+              if (typeof p.stock !== "number") return p;
+              return { ...p, stock: Math.max(0, p.stock - toReduce) };
             }),
           };
         }),
 
-      /**
-       * Marcar un producto como bloqueado (tiene ventas)
-       */
       markLocked: (id) =>
         set((state) => ({
           products: state.products.map((p) =>
@@ -115,17 +82,15 @@ const useProductStore = create<ProductState>()(
           ),
         })),
 
-      /**
-       * Buscar por id
-       */
-      findById: (id) => {
-        return get().products.find((p) => p.id === id);
-      },
+      findById: (id) => get().products.find((p) => p.id === id),
     }),
     {
       name: "skatershop-products-v1",
     }
   )
 );
+
+// ⬇️ esto es lo que te faltaba para que “haya algo exportado”
+export type { Product } from "@/lib/types";
 
 export default useProductStore;

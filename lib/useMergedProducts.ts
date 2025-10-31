@@ -1,57 +1,105 @@
+// lib/useMergedProducts.ts
 /**
-useMergedProducts
-- Hook que mezcla productos base hardcodeados con productos creados en Admin.
-- Los productos del Admin tienen prioridad.
-- Expone { products, getById } para las páginas.
-*/
+ * useMergedProducts
+ * ------------------------------------------------------------
+ * Objetivo:
+ * - Obtener el catálogo unificado de la tienda.
+ *
+ * Orden de preferencia:
+ * 1. 🔎 Intentar leer desde la API: GET /api/products
+ * 2. 🧠 Si falla o no hay API → usar el store local (admin)
+ * 3. 🧱 Unirlo con los productos base (lib/productsBase.ts)
+ *
+ * Esto nos permite ir migrando a backend SIN romper
+ * las pantallas que ya consumen este hook (shop, detail, admin).
+ */
 
-'use client'
+"use client";
 
-import { useMemo } from 'react'
-import { products as baseProducts, Product } from '@/lib/products'
-import useProductStore, { AdminProduct } from '@/store/productStore'
-
-export type StoreProduct = Product & { stock?: number }
+import { useEffect, useMemo, useState } from "react";
+import type { Product } from "@/lib/types";
+import productsBase from "@/lib/productsBase";
+import useProductStore from "@/store/productStore";
 
 export default function useMergedProducts() {
-  const adminProducts = useProductStore((s) => s.products)
+  // productos que tengas en el admin (Zustand, cliente)
+  const adminProducts = useProductStore((s) => s.products) as Product[];
 
-  const merged: StoreProduct[] = useMemo(() => {
-    const map = new Map<string, StoreProduct>()
+  // estado para los que vengan del backend
+  const [remoteProducts, setRemoteProducts] = useState<Product[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // primero admin (tienen prioridad)
-    adminProducts.forEach((p: AdminProduct) => {
-      map.set(p.id, {
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        image: p.image,
-        desc: p.desc,
-        details: p.details,
-        sizes: p.sizes,
-        stock: p.stock, // 👈 incluimos stock
-      })
-    })
+  // efecto: intentar traer desde la API
+  useEffect(() => {
+    let cancelled = false;
 
-    // luego base, si no existe en admin
-    baseProducts.forEach((p) => {
-      if (!map.has(p.id)) {
-        map.set(p.id, {
-          ...p,
-          stock: undefined, // base products no tienen stock editable aún
-        })
+    async function fetchProducts() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/products", {
+          method: "GET",
+        });
+
+        if (!res.ok) {
+          throw new Error("Error al obtener productos del backend");
+        }
+
+        const data = await res.json();
+        const apiProducts = (data.products || []) as Product[];
+
+        if (!cancelled) {
+          setRemoteProducts(apiProducts);
+          setError(null);
+        }
+      } catch (err) {
+        console.warn("[useMergedProducts] usando fallback local:", err);
+        if (!cancelled) {
+          setRemoteProducts(null);
+          setError(
+            err instanceof Error ? err.message : "Error desconocido en API"
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    })
+    }
 
-    return Array.from(map.values())
-  }, [adminProducts])
+    fetchProducts();
 
-  function getById(id: string): StoreProduct | undefined {
-    return merged.find((p) => p.id === id)
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // merge final
+  const products = useMemo<Product[]>(() => {
+    // 1) fuente elegida: si hay backend, usamos backend
+    const source = remoteProducts ?? adminProducts;
+
+    // 2) Unimos con los base. Los admin/remotos pisan a los base.
+    const map = new Map<string, Product>();
+
+    // base primero
+    productsBase.forEach((p) => {
+      map.set(p.id, p);
+    });
+
+    // luego los que vienen de API o del admin
+    source.forEach((p) => {
+      map.set(p.id, p);
+    });
+
+    return Array.from(map.values());
+  }, [remoteProducts, adminProducts]);
 
   return {
-    products: merged,
-    getById,
-  }
+    products,
+    loading,
+    error,
+    // lo dejo expuesto por si en admin quieres saber si vienes de API o de local
+    source: remoteProducts ? "api" : "local",
+  };
 }
