@@ -7,8 +7,7 @@
  * - Resumen con miniaturas, tallas y subtotales.
  * - PayPal sandbox (clientId: "test") activado sólo si el formulario está completo.
  * - Registra ventas y reduce stock al aprobar el pago.
- * - 🔁 NUEVO: además de registrar en stores, envía el checkout a /api/checkout
- *   para ir acostumbrando el frontend a usar el backend.
+ * - 🔁 AHORA: guarda la venta completa en salesStore con datos de cliente.
  */
 
 import { useState } from "react";
@@ -20,10 +19,12 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import Image from "next/image";
 import Link from "next/link";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
+import type { SaleRecord } from "@/lib/types";
 
 export default function CheckoutPage() {
-  const { cart, clearCart, total } = useCartStore();
+  const { cart, clearCart } = useCartStore();
   const reduceStockBatch = useProductStore((s) => s.reduceStockBatch);
+  const addSale = useSalesStore((s) => s.addSale);
   const addSaleBatch = useSalesStore((s) => s.addSaleBatch);
 
   const [paid, setPaid] = useState(false);
@@ -65,63 +66,19 @@ export default function CheckoutPage() {
     parseFloat(discount)
   ).toFixed(2);
 
-  // 🔁 función auxiliar para mandar al backend
-  const sendCheckoutToApi = async () => {
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        body: JSON.stringify({
-          items: cart.map((it) => ({
-            productId: it.id,
-            qty: it.qty,
-            size: it.size,
-          })),
-          customer: {
-            fullName: shipping.fullName,
-            email: shipping.email,
-            phone: shipping.phone,
-            country: shipping.country,
-            adresse: shipping.adresse,
-            city: shipping.city,
-            zip: shipping.zip,
-          },
-          total: Number(grandTotal),
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (res.status === 409) {
-        const data = await res.json();
-        alert(
-          "No se pudo registrar el pedido en el servidor por falta de stock:\n\n" +
-            (data?.details?.join("\n") || "Stock insuficiente")
-        );
-        // ⚠️ aquí NO devolvemos error duro, porque el pago ya se hizo
-        return;
-      }
-
-      if (!res.ok) {
-        console.warn("[checkout] backend devolvió error genérico");
-      }
-    } catch (err) {
-      console.warn("[checkout] no se pudo contactar /api/checkout:", err);
-      // no bloqueamos el flujo del usuario, solo lo informamos por consola
-    }
-  };
-
   return (
     <ClientOnly>
       <div className="text-white">
-        {/* Header + Vaciar carrito (lo tenías comentado) */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Checkout</h2>
         </div>
 
         {paid ? (
           <div className="bg-green-700/20 border border-green-600 rounded-xl p-6">
-            <h3 className="text-xl font-bold text-green-400">✅ Pago completado</h3>
+            <h3 className="text-xl font-bold text-green-400">
+              ✅ Pago completado
+            </h3>
             <p className="text-neutral-300 text-sm mt-2">
               Gracias por tu compra. Te contactaremos para coordinar el envío.
             </p>
@@ -224,17 +181,23 @@ export default function CheckoutPage() {
                     <div className="flex items-start gap-3">
                       {/* Miniatura */}
                       <div className="w-14 h-14 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
-                        <Image
-                          src={
-                            typeof it.image === "string" && it.image.length > 0
-                              ? it.image
-                              : PRODUCT_PLACEHOLDER_IMAGE
-                          }
-                          alt={it.name ?? "producto"}
-                          width={56}
-                          height={56}
-                          className="w-full h-full object-cover"
-                        />
+                        {it.image ? (
+                          <Image
+                            src={
+                              typeof it.image === "string"
+                                ? it.image
+                                : PRODUCT_PLACEHOLDER_IMAGE
+                            }
+                            alt={it.name ?? "producto"}
+                            width={56}
+                            height={56}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-neutral-600 text-center leading-tight px-1">
+                            sin imagen
+                          </span>
+                        )}
                       </div>
 
                       <div>
@@ -295,7 +258,7 @@ export default function CheckoutPage() {
                           return Promise.reject("PayPal order no disponible");
                         }
 
-                        // 🔎 Validación de stock local antes de crear la orden
+                        // 🔎 validación de stock local (igual que antes)
                         const productStore = useProductStore.getState();
                         const outOfStock: string[] = [];
                         cart.forEach((it) => {
@@ -362,31 +325,42 @@ export default function CheckoutPage() {
                         try {
                           const details = await actions.order.capture();
 
-                          // 1) Guardar en stores (lo que ya hacías)
+                          // construir lote para stocks
                           const batch = cart.map((it) => ({
                             productId: it.id,
                             qty: it.qty,
+                            size: it.size,
                           }));
 
-                          addSaleBatch(batch, {
-                            total: Number(grandTotal),
+                          // ✅ 1. guardar venta COMPLETA en el store
+                          const sale: SaleRecord = {
+                            id: details.id ?? "local-" + Date.now().toString(),
+                            createdAt: new Date().toISOString(),
+                            items: batch,
+                            total: parseFloat(grandTotal),
                             customer: {
                               fullName: shipping.fullName,
                               email: shipping.email,
                               phone: shipping.phone,
                               country: shipping.country,
-                              adresse: shipping.adresse,
                               city: shipping.city,
+                              adresse: shipping.adresse,
                               zip: shipping.zip,
                             },
+                          };
+                          addSale(sale);
+
+                          // ✅ 2. compatibilidad con tu flujo anterior
+                          addSaleBatch(batch, {
+                            customer: sale.customer,
+                            total: sale.total,
+                            createdAt: sale.createdAt,
                           });
 
+                          // ✅ 3. reducir stock local
                           reduceStockBatch(batch);
 
-                          // 2) 🔁 Mandar también al backend
-                          await sendCheckoutToApi();
-
-                          // 3) Limpiar carrito y mostrar éxito
+                          // ✅ 4. limpiar carrito y mostrar éxito
                           clearCart();
                           setPaid(true);
 

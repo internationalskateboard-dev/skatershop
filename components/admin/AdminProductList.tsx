@@ -1,40 +1,124 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
-import { useMemo } from "react";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
+import type { Product } from "@/lib/types";
 
-export type AdminProductListProps = {
-  externalProducts?: any[];
-  onEdit?: (product: any) => void;
-  onClone?: (product: any) => void;
+type AdminProductListProps = {
+  onEdit?: (p: Product) => void;
+  onClone?: (p: Product) => void;
 };
 
 export default function AdminProductList({
-  externalProducts,
   onEdit,
   onClone,
 }: AdminProductListProps) {
-  const { products: localProducts, removeProduct } = useProductStore();
+  const {
+    products: localProducts,
+    removeProduct: removeLocalProduct,
+  } = useProductStore();
   const getSoldQty = useSalesStore((s) => s.getSoldQty);
 
-  const products = useMemo(() => {
-    if (Array.isArray(externalProducts) && externalProducts.length > 0) {
-      return externalProducts;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [source, setSource] = useState<"api" | "local">("local");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // cargar productos al montar
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/products", { method: "GET" });
+        if (!res.ok) throw new Error("No se pudo leer /api/products");
+        const data = await res.json();
+        const apiProducts = (data.products || []) as Product[];
+        if (!cancelled) {
+          setProducts(apiProducts);
+          setSource("api");
+        }
+      } catch (err) {
+        console.warn("[AdminProductList] usando productos locales:", err);
+        if (!cancelled) {
+          setProducts(localProducts);
+          setSource("local");
+          setError("No se pudo leer desde la API, mostrando datos locales.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
-    return localProducts;
-  }, [externalProducts, localProducts]);
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [localProducts]);
+
+  async function handleDelete(p: Product) {
+    const soldQty = getSoldQty(p.id);
+    if (soldQty > 0) {
+      alert("No puedes borrar un producto que ya tiene ventas.");
+      return;
+    }
+
+    // intentamos borrar en API primero
+    try {
+      const res = await fetch(`/api/products/${p.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error("DELETE API falló");
+      }
+      // si fue bien, quitamos del estado
+      setProducts((prev) => prev.filter((x) => x.id !== p.id));
+      // y también del local para que tienda no lo vea
+      removeLocalProduct(p.id);
+      return;
+    } catch (err) {
+      console.warn("[AdminProductList] DELETE API falló, borrando local:", err);
+      // fallback: solo local
+      removeLocalProduct(p.id);
+      setProducts((prev) => prev.filter((x) => x.id !== p.id));
+    }
+  }
 
   return (
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-      <h2 className="text-xl font-display font-bold mb-4">
-        Productos en memoria / API
-      </h2>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h2 className="text-xl font-display font-bold">
+          Productos en memoria / API
+        </h2>
+        <p className="text-xs text-neutral-400">
+          Fuente:{" "}
+          <span
+            className={
+              source === "api"
+                ? "text-green-400 font-semibold"
+                : "text-yellow-400 font-semibold"
+            }
+          >
+            {source === "api" ? "API" : "Local (Zustand)"}
+          </span>
+          {error ? (
+            <span className="ml-2 text-[10px] text-red-400">{error}</span>
+          ) : null}
+        </p>
+      </div>
 
       {products.length === 0 ? (
-        <p className="text-neutral-500 text-sm">No hay productos creados aún.</p>
+        <p className="text-neutral-500 text-sm">
+          {loading ? "Cargando productos..." : "No hay productos creados aún."}
+        </p>
       ) : (
         <ul className="space-y-4">
           {products.map((p) => {
@@ -42,7 +126,8 @@ export default function AdminProductList({
             const locked = soldQty > 0;
 
             const isTruncated =
-              typeof p.image === "string" && p.image.includes("...truncated");
+              typeof p.image === "string" &&
+              p.image.includes("...truncated");
             const imageToShow =
               !p.image || isTruncated ? PRODUCT_PLACEHOLDER_IMAGE : p.image;
 
@@ -69,8 +154,7 @@ export default function AdminProductList({
                   </p>
 
                   <p className="text-neutral-400 text-xs">
-                    Stock:{" "}
-                    {typeof p.stock === "number" ? p.stock : "sin definir"}
+                    Stock: {typeof p.stock === "number" ? p.stock : "sin definir"}
                   </p>
 
                   <p className="text-neutral-400 text-xs">
@@ -82,7 +166,7 @@ export default function AdminProductList({
 
                   {p.colors?.length ? (
                     <p className="text-neutral-400 text-xs">
-                      Colores: {p.colors.map((c: any) => c.name).join(", ")}
+                      Colores: {p.colors.map((c) => c.name).join(", ")}
                     </p>
                   ) : null}
 
@@ -91,6 +175,10 @@ export default function AdminProductList({
                       {p.sizeGuide}
                     </p>
                   ) : null}
+
+                  <p className="text-neutral-500 text-[11px] leading-snug mt-1">
+                    {p.desc}
+                  </p>
 
                   <div className="mt-2">
                     <Image
@@ -108,44 +196,38 @@ export default function AdminProductList({
                   </div>
 
                   <p className="text-[10px] text-neutral-500 mt-2">
-                    Vendido: {soldQty} unidad
-                    {soldQty === 1 ? "" : "es"}
+                    Vendido: {soldQty} unidad{soldQty === 1 ? "" : "es"}
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
+                  {/* borrar */}
                   <button
-                    onClick={() => {
-                      if (locked) {
-                        alert(
-                          "No puedes borrar un producto que ya tiene ventas."
-                        );
-                        return;
-                      }
-                      removeProduct(p.id);
-                    }}
+                    onClick={() => handleDelete(p)}
                     className="self-start md:self-auto bg-red-500/20 text-red-400 border border-red-500/40 rounded-lg text-[11px] font-semibold py-2 px-3 hover:bg-red-500/30 hover:text-red-300 transition"
                   >
                     Borrar
                   </button>
 
-                  {!locked && (
+                  {/* editar */}
+                  {!locked && onEdit ? (
                     <button
-                      onClick={() => onEdit?.(p)}
+                      onClick={() => onEdit(p)}
                       className="self-start md:self-auto bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
                     >
                       Editar
                     </button>
-                  )}
+                  ) : null}
 
-                  {locked && (
+                  {/* clonar */}
+                  {locked && onClone ? (
                     <button
-                      onClick={() => onClone?.(p)}
+                      onClick={() => onClone(p)}
                       className="self-start md:self-auto bg-yellow-400 text-black rounded-lg text-[11px] font-bold py-2 px-3 hover:bg-yellow-300 active:scale-95 transition"
                     >
                       Clonar como nuevo
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </li>
             );
