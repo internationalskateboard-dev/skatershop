@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 0 1000 300" fill="none">
+  <style>
+    .logo-stroke { stroke:#000000; stroke-width:10; stroke-linecap:round; stroke-linejoin:round; }
+    .logo-fill   { fill:#000000; font-family: 'Arial Black', sans-serif; }
+    .tag-fill    { fill:#000000; font-family: 'Arial', sans-serif; font-weight:600; letter-spacing:0.2em; }
+  </style>
+
+  <!-- Tabla superior -->
+  <g>
+    <path class="logo-stroke" d="M150 70 L850 70"></path>
+    <path class="logo-stroke" d="M150 110 L850 110"></path>
+    <circle class="logo-fill" cx="320" cy="90" r="8"></circle>
+    <circle class="logo-fill" cx="680" cy="90" r="8"></circle>
+    <path class="logo-stroke" d="M150 70 L130 60"></path>
+    <path class="logo-stroke" d="M150 110 L130 120"></path>
+    <path class="logo-stroke" d="M850 70 L870 60"></path>
+    <path class="logo-stroke" d="M850 110 L870 120"></path>
+  </g>
+
+  <!-- Texto principal -->
+  <text class="logo-fill" x="500" y="190" font-size="90" text-anchor="middle" style="font-weight:900; letter-spacing:0.08em;">
+    INTERNATIONAL
+  </text>
+
+  <!-- Subtítulo -->
+  <text class="tag-fill" x="500" y="235" font-size="28" text-anchor="middle">
+    SK8.ART.SUBCULTURE
+  </text>
+</svg>

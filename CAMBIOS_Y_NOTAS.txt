@@ -1,0 +1,94 @@
+SkaterStore Optimizado – Build v1.0 (Octubre 2025)
+=================================================
+
+📁 Estructura final del proyecto
+--------------------------------
+app/                      Rutas Next.js (Home, Producto, Carrito, Checkout, Admin)
+components/layout/        Navbar, ClientOnly, FloatingCart, CartBadge
+components/ui/            ProductCard, InputField, etc.
+store/                    Estados globales (Zustand): carrito, productos, ventas
+lib/                      Utilidades y hooks (productos base, useMergedProducts)
+public/                   Imágenes y assets estáticos
+next.config.mjs           Configuración Next.js
+tailwind.config.ts        Configuración TailwindCSS
+tsconfig.json             Configuración TypeScript
+package.json              Dependencias y metadatos del proyecto
+
+⚙️ Flujo completo del sistema
+-----------------------------
+1. Admin (/admin) crea o actualiza productos con id, nombre, precio, tallas y stock.
+2. Esos productos viven en productStore (Zustand persistido).
+3. La tienda (Home y /products/[id]) usa useMergedProducts para mostrar:
+   - Productos del Admin (prioridad)
+   - Productos base hardcodeados (fallback)
+4. Usuario añade productos al carrito (cartStore). El id incluye talla: "hoodie-black-M".
+5. /cart muestra el carrito, controla que no se sobrepase el stock y avisa si queda poco.
+6. /checkout:
+   - Pide datos de envío (nombre, país, dirección, etc.).
+   - Bloquea PayPal hasta completar esos datos.
+   - Valida stock otra vez antes de crear la orden PayPal (anti-oversell).
+7. onApprove (PayPal ok):
+   - salesStore.addSaleBatch registra cuántas unidades se vendieron de cada producto base.
+   - productStore.reduceStockBatch descuenta stock disponible.
+   - Se vacía el carrito y se muestra mensaje de pago completado.
+
+🔐 Seguridad PayPal
+-------------------
+- En PayPalScriptProvider usamos NEXT_PUBLIC_PAYPAL_CLIENT_ID.
+- En local va en .env.local.
+- En Vercel va en las Environment Variables.
+- IMPORTANTE: nunca pongas el secret privado de PayPal en el frontend.
+- En producción real deberías:
+  - Tener una ruta API segura que cree la orden en el server usando el secret.
+  - Verificar la captura del pago en tu backend antes de marcar el pedido como pagado.
+
+🚀 Despliegue en Vercel (guía rápida)
+-------------------------------------
+1. Sube este repo a GitHub.
+2. En Vercel: "Import Project" → selecciona el repo.
+3. Añade la variable de entorno:
+   NEXT_PUBLIC_PAYPAL_CLIENT_ID = tu Client ID (sandbox o live).
+4. Deploy.
+5. Listo. La tienda queda pública.
+
+👨‍💻 Guía para nuevos desarrolladores
+------------------------------------
+A) Agregar nuevo producto:
+   - Entra a /admin.
+   - Rellena id único (ej: "hoodie-black"), precio, tallas y stock.
+   - Guardar. Listo, ya aparece en la Home.
+
+B) Cambiar stock de un producto:
+   - Mientras ese producto NO haya tenido ventas, puedes actualizarlo en /admin.
+   - Si ya vendió, se marca como LOCKED y no deja editar ni borrar: debes clonarlo como "hoodie-black-v2".
+
+C) Resetear datos en desarrollo:
+   - Ventas: localStorage.removeItem('skaterstore-sales')
+   - Carrito: localStorage.removeItem('skaterstore-cart')
+   - Productos: localStorage.removeItem('skaterstore-products')
+   (No hagas esto en producción.)
+
+D) Flujo de pago:
+   - /checkout valida dirección/envío del cliente antes de habilitar PayPal.
+   - Antes de crear la orden PayPal revisa stock actual (anti-oversell).
+   - Cuando PayPal confirma, se descuenta stock y se registra la venta.
+
+🧠 Futuro siguiente paso
+------------------------
+1. Conectar MongoDB Atlas:
+   - Colección products (id, name, price, stock, sizes…)
+   - Colección orders (items comprados + datos de envío)
+   - Colección sales (histórico total vendido por producto base)
+   Eso permitiría un Admin real multi-dispositivo y stock compartido global, no sólo en localStorage.
+
+2. App móvil (Expo / React Native):
+   - Se puede consumir la misma API (productos, stock, crear orden).
+   - Notificaciones de "nuevo drop" y "low stock".
+   - Modo offline para ver catálogo sin conexión.
+
+🎨 Identidad y UX de marca
+--------------------------
+- Paleta negro / gris / amarillo ya da una identidad skater/street.
+- Recomendación: mostrar "DROP LIMITADO" o "QUEDAN 2" en ProductCard cuando stock es bajo.
+- Agregar redes sociales / IG al footer aumenta confianza.
+- Después del pago, redirigir a /order/success con resumen de pedido + mensaje "te contactamos por WhatsApp" crea experiencia pro.

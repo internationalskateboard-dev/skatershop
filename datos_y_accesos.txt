@@ -1,0 +1,163 @@
+
+############################################################
+########################	Gmail	########################
+############################################################
+F.N:	21.08.1984
+Genero:	Maculino
+Correo:	internationalskateboard@gmail.com
+Password:	Internationalsk8
+F.Creacion:	27.10.2025
++49 176 638 31 359
+
+
+
+############################################################
+########################	Git		########################
+############################################################
+Correo:	internationalskateboard@gmail.com
+Password:	Internationalskateboardk8
+
+Usuario: internationalskateboard-dev
+
+Repositorio: skaterstore
+
+
+
+############################################################
+########################	Paypal	########################
+############################################################
+
+
+
+
+
+
+
+
+############################################################
+########################	Desarrollo Pasos	########################
+############################################################
+npm install
+npm run dev
+http://localhost:3000
+Npm Vers: npm@11.6.2
+
+	hacer que tu carrito recuerde los productos aunque el usuario recargue o cierre el navegador.
+		Para eso usaremos localStorage y Zustand con middleware de persistencia.
+	-	npm install zustand/middleware
+
+
+
+skateradmin Clave del Usuario Admin
+
+
+
+
+
+Notas: no quieres que alguien cambie precio, tallas o descripción de un producto que ya vendiste, porque eso te rompe histórico.
+
+Vamos a hacerlo en dos partes:
+
+Vamos a llevar un registro de ventas en local (simulado por ahora).
+
+Vamos a bloquear la edición si ese producto ya tiene ventas (>0).
+
+Te lo hago usando el mismo enfoque “sin backend” que ya tenemos: Zustand con persistencia en localStorage.
+
+
+
+
+SKATER-ADMIN-UPGRADE palabra clave
+
+mostrar imagen miniatura en el checkout para mañana
+cuando entro en articulos desde un dispositivo pequeño no mostrar el mini carrito para mañana
+
+
+
+skateshop Poner este Titulo
+
+
+
+
+
+
+
+
+
+
+
+
+
+Tareas:
+
+http://localhost:3000/shop
+	********************
+	Colocar un boton añadir al carrito al lado del boton ver alineado a la derecha para que te lleve al producto para elegir las tallas 
+	y los que tengan solo una talla agregar directo al carrito este es el codigo que tengo para ser ajustado 
+	y tengas presente los cambios y todo lo que estamos haciendo de esta ruta:
+	
+	--- Solo en telefonos y app ---
+	Cambiar texto del boton añadir al carrito por añadir 
+	y que tenga un icono de cesta de carrito simbolico a carrito 
+	y Mostrar mensaje de confirmacion cuando añades al carrito con una notificacion adaptada a moviles y app
+	
+-- aqui voy
+Como elegir 2 tallas del mismo articulo 
+Detalle del pedido de cada articulo en el carrito al lado del boton quitar http://localhost:3000/cart
+
+¿Quieres que te recuerde este flujo cada vez que iniciemos sesión con 
+una palabra clave (por ejemplo: SYNC-GIT) para confirmar que estamos en la misma versión antes de empezar?
+
+Perfecto 👌✨
+Queda todo registrado: mañana retomamos desde tu versión actual y empezamos con el control de versiones Git.
+La palabra clave para iniciar será SYNC-GIT 🧩
+
+Descansa y nos vemos mañana, Skater Dev Session cerrada 🛹💛
+
+
+
+
+
+
+http://localhost:3000/products/[id]	
+	******************** 
+	--- Solo en telefonos y app ---
+	
+	Mostrar mensaje de confirmacion cuando añades al carrito
+
+	Colocar Boton Ver carrito. Despues de agregar al carrito.
+	--- En todos los dispositivos ---
+	y Colocar Boton seguir comprando para dirigirlo a la tienda con iconos 
+	
+	Colocar texto pagar donde dice Ir al checkout
+	
+	
+	
+http://localhost:3000/cart
+	********************
+	Colocar foto del producto en miniatura al carrito
+	
+	Cambiar boton vaciar carrito por segir comprando he ir a la tienda con icono
+	
+	Cambiar texto CheckOut por pagar con Icono
+
+	
+
+http://localhost:3000/checkout
+	********************
+	Colocar todas los paises del mundo excepto donde no se pueda realizar el envio con sus estados y ciudades
+	
+	Validar: campos en general 
+	y telefono como numerico con los codigos de numeros de paises y el campo correo.
+	
+	Agregar costos de envio en el total desde una tabla de la bd segun el destino
+	
+	
+	
+http://localhost:3000/admin
+	********************
+	Separar ventanas:
+		Boton para configurar costos de envio para los destinos segun las empresas de envio a crear antes.
+			y a parte el boton o pestaöa de crear productos y ver productos creados
+		
+		con su opcion o boton navbar correspondiente de cerrar sesion 
