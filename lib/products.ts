@@ -12,7 +12,7 @@ export const products: Product[] = [
   {
     id: 'hoodie-black',
     name: 'Hoodie Oversize Black',
-    price: 59.99,
+    price: 17.99,
     image: '/images/hoodie-black.jpg',
     desc: 'Sudadera negra oversize, cultura skate.',
     details:
@@ -22,7 +22,7 @@ export const products: Product[] = [
   {
     id: 'cap-classic',
     name: 'Snapback Classic Logo',
-    price: 29.99,
+    price: 11.99,
     image: '/images/cap-classic.jpg',
     desc: 'Gorra plana con logo bordado SKATER STORE.',
     details:
