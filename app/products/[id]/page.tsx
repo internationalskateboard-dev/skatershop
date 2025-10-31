@@ -21,6 +21,7 @@
  * 4. Reseteo de toasts al cambiar de producto.
  */
 
+
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
@@ -29,40 +30,19 @@ import useMergedProducts from "@/lib/useMergedProducts";
 import useCartStore from "@/store/cartStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 
-// Tipado mínimo del producto que devuelve useMergedProducts
-type DetailProduct = {
-  id: string;
-  name: string;
-  price: number | string;
-  desc?: string;
-  details?: string;
-  image?: string;
-  sizes?: string[];
-};
-
-// Tipado mínimo del item de carrito
-type CartItem = {
-  id: string;
-  name: string;
-  price: number;
-  qty: number;
-  image?: string;
-  size?: string;
-};
-
 type ToastState = { show: boolean; kind: "success" | "error"; text: string };
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-  const { products } = useMergedProducts() as { products: DetailProduct[] };
+  const { products, source } = useMergedProducts();
 
   const { cart, addToCart, setItemSize } = useCartStore((s) => ({
-    cart: s.cart as CartItem[],
+    cart: s.cart,
     addToCart: s.addToCart,
     setItemSize: s.setItemSize,
   }));
 
-  // Buscar el producto en el array unificado
+  // buscamos el producto
   const product = useMemo(
     () => products.find((p) => p.id === id),
     [products, id]
@@ -76,16 +56,20 @@ export default function ProductDetailPage() {
     text: "",
   });
 
-  // helper para mostrar toast
-  const showToast = (kind: ToastState["kind"], text: string, ms = 2200) => {
-    setToast({ show: true, kind, text });
-    window.setTimeout(() => setToast((t) => ({ ...t, show: false })), ms);
-  };
+  // 🔐 normalizamos tallas para TS (aunque product pueda ser undefined aquí)
+  const sizes =
+    product && Array.isArray(product.sizes) ? product.sizes : [];
+  const hasSizes = sizes.length > 0;
+  const sizeGuide =
+    product &&
+    typeof product.sizeGuide === "string" &&
+    product.sizeGuide.trim().length > 0
+      ? product.sizeGuide
+      : null;
 
-  // Al cambiar de producto: sincronizar estado con lo que haya en el carrito
+  // hook SIEMPRE va aquí, NO después de return
   useEffect(() => {
     if (!product) return;
-
     const inCart = cart.find((i) => i.id === product.id);
     if (inCart) {
       setAdded(true);
@@ -94,12 +78,10 @@ export default function ProductDetailPage() {
       setAdded(false);
       setSelectedSize(null);
     }
-
-    // limpiar toast al cambiar de producto
     setToast((t) => ({ ...t, show: false }));
-  }, [id, product, cart]);
+  }, [product, cart]);
 
-  // Si no se encontró el producto
+  // 🚫 aquí sí podemos devolver
   if (!product) {
     return (
       <div className="text-white text-center py-20">
@@ -114,37 +96,31 @@ export default function ProductDetailPage() {
     );
   }
 
-  // --- lógica de tallas ---
-  const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
+  const showToast = (kind: ToastState["kind"], text: string, ms = 2200) => {
+    setToast({ show: true, kind, text });
+    window.setTimeout(() => setToast((t) => ({ ...t, show: false })), ms);
+  };
 
-  // Cambiar talla: si ya está en carrito, actualizamos en el store
   const handleSelectSize = (size: string) => {
     setSelectedSize(size);
-
     const inCart = cart.find((i) => i.id === product.id);
     if (inCart) {
       setItemSize(product.id, size);
       showToast("success", "Talla cambiada en el carrito ✅");
-      // dejamos added en true porque ya estaba añadido
     }
   };
 
-  // Añadir al carrito
   const handleAddToCart = () => {
-    // si tiene tallas y no se seleccionó, error
     if (hasSizes && !selectedSize) {
       showToast("error", "Selecciona una talla antes de añadir.");
       return;
     }
-
-    // si tiene tallas pero no hay una seleccionada, usamos la primera por seguridad
-    const chosenSize =
-      selectedSize || (hasSizes ? product.sizes?.[0] : undefined);
+    const chosenSize = selectedSize || (hasSizes ? sizes[0] : undefined);
 
     addToCart({
       id: product.id,
       name: product.name,
-      price: Number(product.price ?? 0), // precio seguro
+      price: product.price,
       qty: 1,
       image: product.image,
       size: chosenSize,
@@ -153,9 +129,6 @@ export default function ProductDetailPage() {
     setAdded(true);
     showToast("success", "Producto añadido al carrito 🛒");
   };
-
-  // Precio seguro para render
-  const renderPrice = `€${Number(product.price ?? 0).toFixed(2)}`;
 
   return (
     <div className="relative max-w-5xl mx-auto py-10 px-6 text-white grid md:grid-cols-2 gap-8">
@@ -172,22 +145,30 @@ export default function ProductDetailPage() {
       {/* Info */}
       <div className="flex flex-col justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-3">{product.name}</h1>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h1 className="text-3xl font-bold">{product.name}</h1>
+            <span className="text-[10px] uppercase tracking-wide text-neutral-500">
+              {source === "api"
+                ? "API"
+                : source === "local"
+                ? "LOCAL"
+                : "BASE"}
+            </span>
+          </div>
+
           <p className="text-neutral-400 text-sm mb-4 leading-relaxed">
-            {product.details || product.desc || "Producto de la Skater Store."}
+            {product.details || product.desc}
           </p>
           <p className="text-yellow-400 font-bold text-xl mb-6">
-            {renderPrice}
+            €{product.price.toFixed(2)}
           </p>
 
           {/* Selector de tallas */}
           {hasSizes && (
             <div className="mb-6">
-              <span className="block text-sm text-neutral-300 mb-2">
-                Talla:
-              </span>
+              <span className="block text-sm text-neutral-300 mb-2">Talla:</span>
               <div className="flex flex-wrap gap-2">
-                {product.sizes?.map((size) => (
+                {sizes.map((size) => (
                   <button
                     key={size}
                     onClick={() => handleSelectSize(size)}
@@ -209,11 +190,22 @@ export default function ProductDetailPage() {
               )}
             </div>
           )}
+
+          {/* Guía de tallas */}
+          {sizeGuide && (
+            <div className="mb-6 bg-neutral-900/40 border border-neutral-800 rounded-xl p-3">
+              <p className="text-xs font-semibold text-neutral-200 mb-2">
+                Guía de tallas / medidas
+              </p>
+              <pre className="text-[11px] text-neutral-400 whitespace-pre-wrap leading-relaxed">
+                {sizeGuide}
+              </pre>
+            </div>
+          )}
         </div>
 
         {/* Acciones */}
         <div className="mt-6 flex flex-wrap gap-3 items-center">
-          {/* Añadir / Ya en carrito */}
           <button
             onClick={handleAddToCart}
             disabled={added && !hasSizes}
@@ -227,7 +219,6 @@ export default function ProductDetailPage() {
             {added ? "Ya en carrito ✅" : "Añadir al carrito"}
           </button>
 
-          {/* Ver carrito (siempre) */}
           <Link
             href="/cart"
             className="text-sm font-semibold text-neutral-300 hover:text-yellow-400 transition flex items-center"
@@ -235,7 +226,6 @@ export default function ProductDetailPage() {
             Ver carrito →
           </Link>
 
-          {/* Pagar: solo móvil y solo si este producto fue añadido */}
           {added && (
             <Link
               href="/checkout"
@@ -247,18 +237,18 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Toast verde/rojo */}
+      {/* Toast */}
       {toast.show && (
         <div
           role="status"
           aria-live="polite"
           className={`fixed left-1/2 -translate-x-1/2 top-16 z-50 max-w-[90vw] md:max-w-md
-              rounded-xl px-4 py-3 shadow-xl border
-              ${
-                toast.kind === "success"
-                  ? "bg-green-900/90 border-green-600 text-green-200"
-                  : "bg-red-900/90 border-red-600 text-red-200"
-              }`}
+                rounded-xl px-4 py-3 shadow-xl border
+                ${
+                  toast.kind === "success"
+                    ? "bg-green-900/90 border-green-600 text-green-200"
+                    : "bg-red-900/90 border-red-600 text-red-200"
+                }`}
         >
           <div className="text-sm font-medium">{toast.text}</div>
         </div>
