@@ -1,13 +1,19 @@
 /**
-AdminPage
-- Panel interno para crear/actualizar productos.
-- Maneja stock inicial.
-- Bloquea edición/borrado si ya hubo ventas (LOCKED).
-- Permite clonar producto bloqueado agregando sufijo -v2.
-- Autenticación simple por contraseña guardada en sessionStorage.
-- Sube imagen arrastrando o seleccionando archivo local y la asocia al producto.
-- La imagen se guarda como base64 en el propio objeto del producto.
-*/
+ * AdminPage
+ * ------------------------------------------------------------
+ * - Panel interno para crear/actualizar productos.
+ * - Maneja stock inicial.
+ * - Bloquea edición/borrado si ya hubo ventas.
+ * - Permite clonar producto bloqueado.
+ * - 📦 NUEVO: permite definir COLORES y subir una imagen por cada color.
+ * - 📏 NUEVO: permite guardar una guía de tallas / medidas por talla.
+ * - 🎯 NUEVO: selector de tallas por botones (como en products/[id]).
+ * - 🟡 NUEVO: opción ONE SIZE → desactiva todas las demás tallas.
+ *
+ * NOTA:
+ * - Todo sigue en local (Zustand + localStorage).
+ * - Las imágenes se guardan en base64.
+ */
 
 "use client";
 
@@ -15,9 +21,20 @@ import { useState, useEffect, useRef } from "react";
 import ClientOnly from "@/components/layout/ClientOnly";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
-import Image from "next/image"; //
+import Image from "next/image";
 
 const ADMIN_PASS = "skateradmin"; // cámbiala en producción
+
+// 👇 tallas que mostraremos como botones por defecto
+const DEFAULT_SIZE_OPTIONS = [
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "ONE SIZE", // 👈 aquí la nueva
+];
 
 export default function AdminPage() {
   const { products, addProduct, removeProduct } = useProductStore();
@@ -27,8 +44,10 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [passInput, setPassInput] = useState("");
 
-  // --- formulario del producto nuevo/edición temporal ---
-  // imageData: base64 de la imagen subida o "" si no hay.
+  /**
+   * --- formulario del producto ---
+   * selectedSizes: array interno que vamos a ir marcando con los botones
+   */
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -36,18 +55,28 @@ export default function AdminPage() {
     imageData: "",
     desc: "",
     details: "",
-    sizes: "S,M,L,XL",
-    stock: "0", // string porque viene de input
+    // ⬇⬇ usamos array de tallas activas
+    selectedSizes: ["S", "M", "L", "XL"],
+    stock: "1",
+    colorsText: "",
+    sizeGuide: "",
   });
 
-  // preview visual en el panel mientras creas/editas
+  // preview visual de la imagen principal
   const [preview, setPreview] = useState<string>("");
 
-  // estado visual del drag&drop
+  // estado visual del drag&drop de la imagen principal
   const [isDragging, setIsDragging] = useState(false);
 
-  // ref al <input type="file" /> escondido
+  // ref al <input type="file" /> escondido para la imagen principal
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  /**
+   * aquí guardamos las imágenes específicas de cada color
+   */
+  const [colorImages, setColorImages] = useState<
+    { name: string; image: string }[]
+  >([]);
 
   // recordar sesión admin
   useEffect(() => {
@@ -65,7 +94,7 @@ export default function AdminPage() {
     }
   }
 
-  // cambios de campos de texto/textarea
+  // cambios de campos de texto/textarea del form
   function handleChangeTextField(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
@@ -73,28 +102,22 @@ export default function AdminPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  // cuando el admin selecciona/arrastra una imagen
+  // imagen principal
   function handleFileSelected(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // guardamos el base64 en el form
       setForm((prev) => ({ ...prev, imageData: result }));
-      // mostramos preview
       setPreview(result);
     };
     reader.readAsDataURL(file);
   }
 
-  // click -> abre file picker
   function onFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelected(file);
-    }
+    if (file) handleFileSelected(file);
   }
 
-  // drag&drop handlers
   function onDragOver(e: React.DragEvent) {
     e.preventDefault();
     setIsDragging(true);
@@ -109,55 +132,118 @@ export default function AdminPage() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileSelected(file);
-    }
+    if (file) handleFileSelected(file);
+  }
+
+  // imagen para un color concreto
+  function handleColorImageUpload(colorName: string, file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setColorImages((prev) => {
+        const exists = prev.find((c) => c.name === colorName);
+        if (exists) {
+          return prev.map((c) =>
+            c.name === colorName ? { ...c, image: result } : c
+          );
+        }
+        return [...prev, { name: colorName, image: result }];
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /**
+   * Tallas (botones)
+   * - si se pulsa ONE SIZE → queda solo esa
+   * - si ONE SIZE está activa y se pulsa otra → quitamos ONE SIZE y activamos la otra
+   * - si se pulsa una activa → se desactiva
+   */
+  function toggleSize(size: string) {
+    setForm((prev) => {
+      const already = prev.selectedSizes.includes(size);
+
+      // caso especial: ONE SIZE
+      if (size === "ONE SIZE") {
+        return {
+          ...prev,
+          selectedSizes: ["ONE SIZE"], // solo esa
+        };
+      }
+
+      // si ya está activa esa talla normal → la quitamos
+      if (already) {
+        const next = prev.selectedSizes.filter((s) => s !== size);
+        return {
+          ...prev,
+          selectedSizes: next,
+        };
+      }
+
+      // si NO está activa y actualmente está ONE SIZE → la quitamos
+      const withoutOneSize = prev.selectedSizes.filter(
+        (s) => s !== "ONE SIZE"
+      );
+
+      return {
+        ...prev,
+        selectedSizes: [...withoutOneSize, size],
+      };
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Validaciones mínimas
     if (!form.id || !form.name || !form.price) {
       alert("ID, nombre y precio son obligatorios");
       return;
     }
 
-    // Protección: no editar producto que ya vendió
     const soldAlready = getSoldQty(form.id.trim());
     if (soldAlready > 0) {
       alert("Este producto ya tiene ventas y no puede ser modificado.");
       return;
     }
 
-    // Creamos la estructura final del producto que va al store
+    // ✅ tallas vienen del selector de botones
+    const sizes = form.selectedSizes;
+
+    // colores -> array de nombres
+    const colorNames = form.colorsText
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    // colores -> array de objetos {name, image}
+    const colors =
+      colorNames.length > 0
+        ? colorNames.map((name) => {
+            const found = colorImages.find((c) => c.name === name);
+            return {
+              name,
+              image: found ? found.image : "",
+            };
+          })
+        : [];
+
+    // producto final
     const newProduct = {
       id: form.id.trim(),
       name: form.name.trim(),
       price: parseFloat(form.price),
-      /**
-       * image:
-       * Guardamos el base64 que el admin subió en `imageData`.
-       * Si no subió imagen, usamos un fallback.
-       *
-       * Más adelante, cuando tengamos backend/CDN, este campo
-       * pasará a ser una URL remota. Toda la UI seguirá funcionando,
-       * no se rompe nada en móvil.
-       */
       image: form.imageData || "/images/hoodie-black.jpg",
       desc: form.desc.trim(),
       details: form.details.trim(),
-      sizes: form.sizes
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      stock: parseInt(form.stock || "0", 10), // guardamos stock como número
+      sizes, // 👈 ya es array
+      stock: parseInt(form.stock || "0", 10),
+      colors,
+      sizeGuide: form.sizeGuide.trim(),
     };
 
-    // Guardar producto en store (Zustand persistido en localStorage)
     addProduct(newProduct);
 
-    // Limpiar formulario para el siguiente producto
+    // reset Limpiar formulario para el siguiente producto
     setForm({
       id: "",
       name: "",
@@ -165,10 +251,14 @@ export default function AdminPage() {
       imageData: "",
       desc: "",
       details: "",
-      sizes: "S,M,L,XL",
-      stock: "0",
+      // 👇 volvemos al set por defecto
+      selectedSizes: ["S", "M", "L", "XL"],
+      stock: "1",
+      colorsText: "Negro,Blanco",
+      sizeGuide: "",
     });
     setPreview("");
+    setColorImages([]);
   }
 
   return (
@@ -203,7 +293,7 @@ export default function AdminPage() {
           </form>
         ) : (
           <>
-            {/* ------- FORMULARIO PRODUCTO NUEVO / EDITAR ------- */}
+            {/* ------- FORMULARIO ------- */}
             <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
               <h2 className="text-xl font-display font-bold mb-4">
                 Crear / Actualizar producto
@@ -213,7 +303,6 @@ export default function AdminPage() {
                 onSubmit={handleSubmit}
                 className="grid gap-4 md:grid-cols-2"
               >
-                {/* ID */}
                 <InputField
                   label="ID (slug único, ej: hoodie-black)"
                   name="id"
@@ -222,7 +311,6 @@ export default function AdminPage() {
                   placeholder="hoodie-black"
                 />
 
-                {/* Nombre */}
                 <InputField
                   label="Nombre"
                   name="name"
@@ -231,17 +319,15 @@ export default function AdminPage() {
                   placeholder="Hoodie Black"
                 />
 
-                {/* Precio */}
                 <InputField
                   label="Precio (€)"
                   name="price"
                   value={form.price}
                   onChange={handleChangeTextField}
                   type="number"
-                  placeholder="59.99"
+                  placeholder="17.99"
                 />
 
-                {/* Stock */}
                 <InputField
                   label="Stock disponible"
                   name="stock"
@@ -251,7 +337,7 @@ export default function AdminPage() {
                   placeholder="10"
                 />
 
-                {/* SUBIDA / PREVIEW DE IMAGEN */}
+                {/* Imagen principal */}
                 <ImageDropField
                   label="Imagen del producto"
                   hint="Arrastra una imagen aquí o haz click para seleccionar"
@@ -263,7 +349,6 @@ export default function AdminPage() {
                   onPickFile={() => fileInputRef.current?.click()}
                 />
 
-                {/* input de archivos oculto: lo disparamos con onPickFile() */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -287,19 +372,77 @@ export default function AdminPage() {
                   name="details"
                   value={form.details}
                   onChange={handleChangeTextField}
-                  placeholder="Fit relajado, algodón pesado, 450gsm, puños reforzados..."
+                  placeholder="Fit relajado, algodón pesado, 450gsm..."
                 />
 
-                {/* Tallas */}
-                <InputField
-                  label="Tallas (separadas por coma)"
-                  name="sizes"
-                  value={form.sizes}
+                {/* 🎯 Selector de tallas (con ONE SIZE) */}
+                <div className="md:col-span-2">
+                  <span className="text-neutral-300 text-sm block mb-2">
+                    Tallas disponibles
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {DEFAULT_SIZE_OPTIONS.map((size) => {
+                      const active = form.selectedSizes.includes(size);
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => toggleSize(size)}
+                          className={`px-3 py-1 rounded-lg text-sm font-semibold border transition ${
+                            active
+                              ? "bg-yellow-400 text-black border-yellow-400"
+                              : "border-neutral-700 text-neutral-300 hover:border-yellow-400 hover:text-yellow-400"
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-2">
+                    Haz click para activar o desactivar tallas. Si seleccionas{" "}
+                    <strong>ONE SIZE</strong>, se desactivarán todas las demás.
+                  </p>
+                </div>
+
+                {/* 📏 guía de tallas */}
+                <TextareaField
+                  label="Guía / Medidas por talla (opcional)"
+                  name="sizeGuide"
+                  value={form.sizeGuide}
                   onChange={handleChangeTextField}
-                  placeholder="S,M,L,XL"
+                  placeholder={`S: pecho 50cm, largo 70cm\nM: pecho 52cm, largo 72cm\nL: pecho 54cm, largo 74cm`}
                 />
 
-                {/* Submit */}
+                {/* Colores */}
+                <InputField
+                  label="Colores (separados por coma)"
+                  name="colorsText"
+                  value={form.colorsText}
+                  onChange={handleChangeTextField}
+                  placeholder="Negro,Blanco,Rojo"
+                  className="md:col-span-2"
+                />
+
+                {/* Subida por color */}
+                {form.colorsText
+                  .split(",")
+                  .map((c) => c.trim())
+                  .filter(Boolean)
+                  .map((colorName) => (
+                    <ColorUploadField
+                      key={colorName}
+                      colorName={colorName}
+                      currentImage={
+                        colorImages.find((c) => c.name === colorName)?.image ||
+                        ""
+                      }
+                      onSelectFile={(file) =>
+                        handleColorImageUpload(colorName, file)
+                      }
+                    />
+                  ))}
+
                 <div className="md:col-span-2 flex justify-end">
                   <button
                     type="submit"
@@ -311,7 +454,7 @@ export default function AdminPage() {
               </form>
             </section>
 
-            {/* ------- LISTA DE PRODUCTOS EXISTENTES ------- */}
+            {/* ------- LISTA DE PRODUCTOS ------- */}
             <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
               <h2 className="text-xl font-display font-bold mb-4">
                 Productos en memoria
@@ -327,6 +470,15 @@ export default function AdminPage() {
                     const soldQty = getSoldQty(p.id);
                     const locked = soldQty > 0;
 
+                    // detectar si imagen viene truncada por el store
+                    const isTruncated =
+                      typeof p.image === "string" &&
+                      p.image.includes("...truncated");
+                    const imageToShow =
+                      !p.image || isTruncated
+                        ? "/images/placeholder.png"
+                        : p.image;
+
                     return (
                       <li
                         key={p.id}
@@ -338,7 +490,6 @@ export default function AdminPage() {
                             <span className="text-[10px] text-neutral-500">
                               ({p.id})
                             </span>
-
                             {locked && (
                               <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-[2px] font-bold uppercase tracking-wide">
                                 LOCKED
@@ -359,26 +510,36 @@ export default function AdminPage() {
                             Tallas: {p.sizes.join(", ")}
                           </p>
 
+                          {p.colors?.length ? (
+                            <p className="text-neutral-400 text-xs">
+                              Colores: {p.colors.map((c) => c.name).join(", ")}
+                            </p>
+                          ) : null}
+
+                          {p.sizeGuide ? (
+                            <p className="text-[11px] text-neutral-500 mt-2 whitespace-pre-line">
+                              {p.sizeGuide}
+                            </p>
+                          ) : null}
+
                           <p className="text-neutral-500 text-[11px] leading-snug mt-1">
                             {p.desc}
                           </p>
 
-                          {/* Preview mini de la imagen guardada */}
-<div className="mt-2">
-  {p.image ? (
-    <Image
-      src={typeof p.image === "string" ? p.image : "/images/placeholder.png"}
-      alt={p.name ?? "producto"}
-      width={80}
-      height={80}
-      className="w-20 h-20 object-cover rounded-lg border border-neutral-800 bg-neutral-950"
-    />
-  ) : (
-    <div className="w-20 h-20 flex items-center justify-center text-[10px] text-neutral-600 rounded-lg border border-neutral-800 bg-neutral-950">
-      sin imagen
-    </div>
-  )}
-</div>
+                          <div className="mt-2">
+                            <Image
+                              src={imageToShow}
+                              alt={p.name ?? "producto"}
+                              width={80}
+                              height={80}
+                              className="w-20 h-20 object-cover rounded-lg border border-neutral-800 bg-neutral-950"
+                            />
+                            {isTruncated && (
+                              <p className="text-[10px] text-yellow-400 mt-1">
+                                imagen recortada en local
+                              </p>
+                            )}
+                          </div>
 
                           <p className="text-[10px] text-neutral-500 mt-2">
                             Vendido: {soldQty} unidad
@@ -387,7 +548,6 @@ export default function AdminPage() {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2">
-                          {/* Borrar */}
                           <button
                             onClick={() => {
                               if (locked) {
@@ -403,23 +563,42 @@ export default function AdminPage() {
                             Borrar
                           </button>
 
-                          {/* Clonar como nuevo (solo si LOCKED) */}
                           {locked && (
                             <button
                               onClick={() => {
-                                // pre-cargar los datos en el formulario
-                                // generando un nuevo ID con sufijo -v2
                                 setForm({
                                   id: p.id + "-v2",
                                   name: p.name,
                                   price: String(p.price),
-                                  imageData: p.image || "",
+                                  imageData: isTruncated ? "" : p.image || "",
                                   desc: p.desc,
                                   details: p.details,
-                                  sizes: p.sizes.join(","),
+                                  selectedSizes: p.sizes ?? ["S", "M", "L"],
                                   stock: String(p.stock ?? 0),
+                                  colorsText: p.colors?.length
+                                    ? p.colors.map((c) => c.name).join(",")
+                                    : "Negro,Blanco",
+                                  sizeGuide: p.sizeGuide ?? "",
                                 });
-                                setPreview(p.image || "");
+
+                                if (p.colors?.length) {
+                                  setColorImages(
+                                    p.colors.map((c) => ({
+                                      name: c.name,
+                                      image:
+                                        c.image &&
+                                        !c.image.includes("...truncated")
+                                          ? c.image
+                                          : "",
+                                    }))
+                                  );
+                                } else {
+                                  setColorImages([]);
+                                }
+
+                                setPreview(
+                                  !isTruncated && p.image ? p.image : ""
+                                );
                                 window.scrollTo({
                                   top: 0,
                                   behavior: "smooth",
@@ -446,8 +625,6 @@ export default function AdminPage() {
 
 /* -----------------------------
  * InputField
- * Campo de input de una sola línea
- * Estilo dark + focus amarillo
  * ----------------------------- */
 function InputField({
   label,
@@ -457,6 +634,7 @@ function InputField({
   type = "text",
   placeholder,
   required = true,
+  className = "",
 }: {
   label: string;
   name: string;
@@ -467,9 +645,10 @@ function InputField({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  className?: string;
 }) {
   return (
-    <label className="block text-sm">
+    <label className={`block text-sm ${className}`}>
       <span className="text-neutral-300">{label}</span>
       <input
         required={required}
@@ -486,7 +665,6 @@ function InputField({
 
 /* -----------------------------
  * TextareaField
- * Igual estilo que InputField pero multilinea
  * ----------------------------- */
 function TextareaField({
   label,
@@ -510,7 +688,7 @@ function TextareaField({
       <span className="text-neutral-300">{label}</span>
       <textarea
         required={required}
-        className="mt-1 w-full rounded-lg bg-neutral-900 border border-neutral-700 px-3 py-2 text-white outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-sm min-h-[70px]"
+        className="mt-1 w-full rounded-lg bg-neutral-900 border border-neutral-700 px-3 py-2 text-white outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-sm min-h-[70px] whitespace-pre-line"
         name={name}
         value={value}
         onChange={onChange}
@@ -522,18 +700,6 @@ function TextareaField({
 
 /* -----------------------------
  * ImageDropField
- * Zona drag & drop + preview para imagen del producto.
- *
- * - El admin puede:
- *   1. Arrastrar y soltar una imagen.
- *   2. Hacer click para abrir el file picker.
- *
- * - Mostramos una vista previa.
- * - Esa imagen queda guardada en `form.imageData` (base64),
- *   y luego se mete en el campo `image` del producto al guardar.
- *
- * Esto no depende de un backend todavía, funciona solo con Zustand/localStorage.
- * Más adelante podemos reemplazar `imageData` por una URL subida a un server/CDN.
  * ----------------------------- */
 function ImageDropField({
   label,
@@ -572,9 +738,11 @@ function ImageDropField({
       >
         {preview ? (
           <div className="flex flex-col items-center gap-3">
-            <img
+            <Image
               src={preview}
               alt="Preview producto"
+              width={96}
+              height={96}
               className="w-24 h-24 object-cover rounded-lg border border-neutral-800 bg-neutral-950"
             />
             <p className="text-[11px] text-neutral-400">
@@ -591,6 +759,58 @@ function ImageDropField({
             </p>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------------
+ * ColorUploadField
+ * ----------------------------- */
+function ColorUploadField({
+  colorName,
+  currentImage,
+  onSelectFile,
+}: {
+  colorName: string;
+  currentImage: string;
+  onSelectFile: (file: File) => void;
+}) {
+  return (
+    <div className="md:col-span-2 border border-neutral-800 rounded-lg p-3 flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-semibold text-white">{colorName}</p>
+        <p className="text-[11px] text-neutral-500">
+          Imagen específica para este color
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        {currentImage ? (
+          <Image
+            src={currentImage}
+            alt={colorName}
+            width={40}
+            height={40}
+            className="w-10 h-10 rounded-md border border-neutral-700 object-cover"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-md border border-dashed border-neutral-700 flex items-center justify-center text-[10px] text-neutral-500">
+            -
+          </div>
+        )}
+
+        <label className="text-xs bg-neutral-800 px-3 py-1 rounded-md border border-neutral-700 cursor-pointer hover:border-yellow-400 hover:text-yellow-400 transition">
+          Cambiar
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onSelectFile(f);
+            }}
+          />
+        </label>
       </div>
     </div>
   );
