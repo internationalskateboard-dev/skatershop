@@ -1,27 +1,38 @@
+"use client";
+
 /**
  * AdminPage
  * ------------------------------------------------------------
- * - Panel interno para crear/actualizar productos.
- * - Maneja stock inicial.
- * - Bloquea edición/borrado si ya hubo ventas.
- * - Permite clonar producto bloqueado.
- * - 📦 NUEVO: permite definir COLORES y subir una imagen por cada color.
- * - 📏 NUEVO: permite guardar una guía de tallas / medidas por talla.
- * - 🎯 NUEVO: selector de tallas por botones (como en products/[id]).
- * - 🟡 NUEVO: opción ONE SIZE → desactiva todas las demás tallas.
+ * Panel interno para crear/actualizar productos de SkaterShop.
+ *
+ * ✅ Mantiene TUS mejoras:
+ * - Stock inicial
+ * - Bloqueo por ventas (si hubo ventas → no borrar / no editar)
+ * - Clonar producto bloqueado
+ * - 📦 Colores + imagen por color
+ * - 📏 Guía de tallas / medidas
+ * - 🎯 Selector de tallas por botones (incluye ONE SIZE)
+ * - 🎣 Drag & drop de imagen principal
+ *
+ * ✅ Añade las mías:
+ * - Intenta leer productos desde /api/products (fuente API)
+ * - Si la API falla → usa productos locales del store (Zustand)
+ * - Al guardar, intenta POST /api/products
+ * - Si la API falla → guarda igual en el store local
+ * - Muestra “Fuente: API / Local (Zustand)”
  *
  * NOTA:
- * - Todo sigue en local (Zustand + localStorage).
- * - Las imágenes se guardan en base64.
+ * - Sigue siendo auth simple en cliente con sessionStorage.
+ * - Las imágenes se siguen guardando en base64.
  */
-
-"use client";
 
 import { useState, useEffect, useRef } from "react";
 import ClientOnly from "@/components/layout/ClientOnly";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
 import Image from "next/image";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
+import type { Product } from "@/lib/types";
 
 const ADMIN_PASS = "skateradmin"; // cámbiala en producción
 
@@ -37,12 +48,30 @@ const DEFAULT_SIZE_OPTIONS = [
 ];
 
 export default function AdminPage() {
-  const { products, addProduct, removeProduct } = useProductStore();
+  // store local
+  const {
+    products: localProducts,
+    addProduct,
+    updateProduct,
+    removeProduct,
+  } = useProductStore() as {
+    products: any[];
+    addProduct: (p: any) => void;
+    updateProduct: (id: string, data: any) => void;
+    removeProduct: (id: string) => void;
+  };
   const getSoldQty = useSalesStore((s) => s.getSoldQty);
 
   // --- auth local ---
   const [authed, setAuthed] = useState(false);
   const [passInput, setPassInput] = useState("");
+
+  // --- fuente de datos (API o local) ---
+  const [source, setSource] = useState<"api" | "local">("local");
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   /**
    * --- formulario del producto ---
@@ -55,7 +84,6 @@ export default function AdminPage() {
     imageData: "",
     desc: "",
     details: "",
-    // ⬇⬇ usamos array de tallas activas
     selectedSizes: ["S", "M", "L", "XL"],
     stock: "1",
     colorsText: "",
@@ -73,6 +101,7 @@ export default function AdminPage() {
 
   /**
    * aquí guardamos las imágenes específicas de cada color
+   * forma: [{ name: "Negro", image: "data:image/..." }]
    */
   const [colorImages, setColorImages] = useState<
     { name: string; image: string }[]
@@ -83,6 +112,45 @@ export default function AdminPage() {
     const ok = sessionStorage.getItem("skater-admin-ok");
     if (ok === "yes") setAuthed(true);
   }, []);
+
+  // cuando se autentica → intentamos leer desde API
+  useEffect(() => {
+    if (!authed) return;
+
+    let cancelled = false;
+
+    async function loadProducts() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/products", { method: "GET" });
+        if (!res.ok) throw new Error("API no disponible");
+        const data = await res.json();
+        const apiProducts = (data.products || []) as Product[];
+        if (!cancelled) {
+          setProducts(apiProducts);
+          setSource("api");
+        }
+      } catch (err) {
+        console.warn("[Admin] usando productos locales:", err);
+        if (!cancelled) {
+          setProducts(localProducts);
+          setSource("local");
+          setError("No se pudo leer desde la API, usando datos locales.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authed, localProducts]);
 
   function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -192,7 +260,8 @@ export default function AdminPage() {
     });
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  // guardar producto (API → fallback local) usando TU forma de producto
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!form.id || !form.name || !form.price) {
@@ -227,21 +296,62 @@ export default function AdminPage() {
           })
         : [];
 
-    // producto final
-    const newProduct = {
+    // producto final en TU shape
+    const newProduct: any = {
       id: form.id.trim(),
       name: form.name.trim(),
       price: parseFloat(form.price),
-      image: form.imageData || "/images/hoodie-black.jpg",
+      image: form.imageData || PRODUCT_PLACEHOLDER_IMAGE,
       desc: form.desc.trim(),
       details: form.details.trim(),
-      sizes, // 👈 ya es array
+      sizes,
       stock: parseInt(form.stock || "0", 10),
       colors,
-      sizeGuide: form.sizeGuide.trim(),
+      sizeGuide: form.sizeGuide?.trim?.() ?? "",
     };
 
-    addProduct(newProduct);
+    // 1) intentar guardar en API
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        body: JSON.stringify(newProduct),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) throw new Error("API no disponible");
+
+      setSaveMessage("Producto guardado en API ✅");
+      setSource("api");
+
+      // actualizamos listado en pantalla
+      setProducts((prev) => {
+        const exists = prev.find((p) => p.id === newProduct.id);
+        if (exists) {
+          return prev.map((p) => (p.id === newProduct.id ? newProduct : p));
+        }
+        return [...prev, newProduct];
+      });
+
+      // sincronizamos local también para que la tienda lo vea
+      updateProduct(newProduct.id, newProduct);
+    } catch (err) {
+      console.warn("[Admin] API no disponible, guardando en local:", err);
+
+      // 2) fallback: Zustand local
+      addProduct(newProduct);
+      updateProduct(newProduct.id, newProduct);
+      setProducts((prev) => {
+        const exists = prev.find((p) => p.id === newProduct.id);
+        if (exists) {
+          return prev.map((p) => (p.id === newProduct.id ? newProduct : p));
+        }
+        return [...prev, newProduct];
+      });
+      setSaveMessage("Producto guardado LOCALMENTE (API no disponible) ⚠️");
+      setSource("local");
+    }
 
     // reset Limpiar formulario para el siguiente producto
     setForm({
@@ -251,7 +361,6 @@ export default function AdminPage() {
       imageData: "",
       desc: "",
       details: "",
-      // 👇 volvemos al set por defecto
       selectedSizes: ["S", "M", "L", "XL"],
       stock: "1",
       colorsText: "Negro,Blanco",
@@ -259,14 +368,74 @@ export default function AdminPage() {
     });
     setPreview("");
     setColorImages([]);
+
+    setTimeout(() => setSaveMessage(null), 3000);
+  }
+
+  // cargar un producto en el form (para editar / clonar)
+  function loadProductToForm(p: any, cloneAsNew = false) {
+    const isTruncated =
+      typeof p.image === "string" && p.image.includes("...truncated");
+
+    setForm({
+      id: cloneAsNew ? p.id + "-v2" : p.id,
+      name: p.name ?? "",
+      price: p.price ? String(p.price) : "",
+      imageData: !isTruncated && p.image ? p.image : "",
+      desc: p.desc ?? "",
+      details: p.details ?? "",
+      selectedSizes: Array.isArray(p.sizes) && p.sizes.length
+        ? p.sizes
+        : ["S", "M", "L", "XL"],
+      stock: p.stock !== undefined ? String(p.stock) : "1",
+      colorsText: p.colors?.length
+        ? p.colors.map((c: any) => c.name).join(",")
+        : "Negro,Blanco",
+      sizeGuide: p.sizeGuide ?? "",
+    });
+
+    // reconstruir imágenes por color
+    if (p.colors?.length) {
+      setColorImages(
+        p.colors.map((c: any) => ({
+          name: c.name,
+          image:
+            c.image && !c.image.includes("...truncated") ? c.image : "",
+        }))
+      );
+    } else {
+      setColorImages([]);
+    }
+
+    setPreview(!isTruncated && p.image ? p.image : "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
     <ClientOnly>
       <div className="text-white max-w-3xl mx-auto py-10 space-y-10">
-        <h1 className="text-3xl font-display font-bold tracking-tight">
-          Admin / SkaterStore
-        </h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-3xl font-display font-bold tracking-tight">
+            Admin / SkaterStore
+          </h1>
+          {authed && (
+            <p className="text-xs text-neutral-400">
+              Fuente:{" "}
+              <span
+                className={
+                  source === "api"
+                    ? "text-green-400 font-semibold"
+                    : "text-yellow-400 font-semibold"
+                }
+              >
+                {source === "api" ? "API" : "Local (Zustand)"}
+              </span>
+              {error ? (
+                <span className="ml-2 text-[10px] text-red-400">{error}</span>
+              ) : null}
+            </p>
+          )}
+        </div>
 
         {/* ------- LOGIN ADMIN ------- */}
         {!authed ? (
@@ -443,13 +612,17 @@ export default function AdminPage() {
                     />
                   ))}
 
-                <div className="md:col-span-2 flex justify-end">
+                <div className="md:col-span-2 flex justify-end gap-3 items-center">
                   <button
                     type="submit"
                     className="bg-yellow-400 text-black font-bold text-xs py-3 px-5 rounded-lg hover:bg-yellow-300 active:scale-95 transition uppercase tracking-wide"
+                    disabled={loading}
                   >
-                    Guardar producto
+                    {loading ? "Guardando..." : "Guardar producto"}
                   </button>
+                  {saveMessage && (
+                    <p className="text-xs text-neutral-300">{saveMessage}</p>
+                  )}
                 </div>
               </form>
             </section>
@@ -457,12 +630,14 @@ export default function AdminPage() {
             {/* ------- LISTA DE PRODUCTOS ------- */}
             <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
               <h2 className="text-xl font-display font-bold mb-4">
-                Productos en memoria
+                Productos en memoria / API
               </h2>
 
               {products.length === 0 ? (
                 <p className="text-neutral-500 text-sm">
-                  No hay productos creados aún.
+                  {loading
+                    ? "Cargando productos..."
+                    : "No hay productos creados aún."}
                 </p>
               ) : (
                 <ul className="space-y-4">
@@ -476,7 +651,7 @@ export default function AdminPage() {
                       p.image.includes("...truncated");
                     const imageToShow =
                       !p.image || isTruncated
-                        ? "/images/placeholder.png"
+                        ? PRODUCT_PLACEHOLDER_IMAGE
                         : p.image;
 
                     return (
@@ -498,21 +673,26 @@ export default function AdminPage() {
                           </p>
 
                           <p className="text-yellow-400 font-bold">
-                            €{p.price.toFixed(2)}
+                            €{Number(p.price ?? 0).toFixed(2)}
                           </p>
 
                           <p className="text-neutral-400 text-xs">
-                            Stock: {p.stock} unidad
-                            {p.stock === 1 ? "" : "es"}
+                            Stock:{" "}
+                            {typeof p.stock === "number"
+                              ? p.stock
+                              : "sin definir"}
                           </p>
 
                           <p className="text-neutral-400 text-xs">
-                            Tallas: {p.sizes.join(", ")}
+                            Tallas:{" "}
+                            {Array.isArray(p.sizes) && p.sizes.length
+                              ? p.sizes.join(", ")
+                              : "—"}
                           </p>
 
                           {p.colors?.length ? (
                             <p className="text-neutral-400 text-xs">
-                              Colores: {p.colors.map((c) => c.name).join(", ")}
+                              Colores: {p.colors.map((c: any) => c.name).join(", ")}
                             </p>
                           ) : null}
 
@@ -556,54 +736,31 @@ export default function AdminPage() {
                                 );
                                 return;
                               }
+                              // borrado SOLO local en esta fase
                               removeProduct(p.id);
+                              setProducts((prev) =>
+                                prev.filter((x) => x.id !== p.id)
+                              );
                             }}
                             className="self-start md:self-auto bg-red-500/20 text-red-400 border border-red-500/40 rounded-lg text-[11px] font-semibold py-2 px-3 hover:bg-red-500/30 hover:text-red-300 transition"
                           >
                             Borrar
                           </button>
 
+                          {/* editar */}
+                          {!locked && (
+                            <button
+                              onClick={() => loadProductToForm(p, false)}
+                              className="self-start md:self-auto bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
+                            >
+                              Editar
+                            </button>
+                          )}
+
+                          {/* clonar */}
                           {locked && (
                             <button
-                              onClick={() => {
-                                setForm({
-                                  id: p.id + "-v2",
-                                  name: p.name,
-                                  price: String(p.price),
-                                  imageData: isTruncated ? "" : p.image || "",
-                                  desc: p.desc,
-                                  details: p.details,
-                                  selectedSizes: p.sizes ?? ["S", "M", "L"],
-                                  stock: String(p.stock ?? 0),
-                                  colorsText: p.colors?.length
-                                    ? p.colors.map((c) => c.name).join(",")
-                                    : "Negro,Blanco",
-                                  sizeGuide: p.sizeGuide ?? "",
-                                });
-
-                                if (p.colors?.length) {
-                                  setColorImages(
-                                    p.colors.map((c) => ({
-                                      name: c.name,
-                                      image:
-                                        c.image &&
-                                        !c.image.includes("...truncated")
-                                          ? c.image
-                                          : "",
-                                    }))
-                                  );
-                                } else {
-                                  setColorImages([]);
-                                }
-
-                                setPreview(
-                                  !isTruncated && p.image ? p.image : ""
-                                );
-                                window.scrollTo({
-                                  top: 0,
-                                  behavior: "smooth",
-                                });
-                              }}
+                              onClick={() => loadProductToForm(p, true)}
                               className="self-start md:self-auto bg-yellow-400 text-black rounded-lg text-[11px] font-bold py-2 px-3 hover:bg-yellow-300 active:scale-95 transition"
                             >
                               Clonar como nuevo
@@ -738,11 +895,10 @@ function ImageDropField({
       >
         {preview ? (
           <div className="flex flex-col items-center gap-3">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={preview}
               alt="Preview producto"
-              width={96}
-              height={96}
               className="w-24 h-24 object-cover rounded-lg border border-neutral-800 bg-neutral-950"
             />
             <p className="text-[11px] text-neutral-400">
@@ -786,11 +942,10 @@ function ColorUploadField({
       </div>
       <div className="flex items-center gap-2">
         {currentImage ? (
-          <Image
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
             src={currentImage}
             alt={colorName}
-            width={40}
-            height={40}
             className="w-10 h-10 rounded-md border border-neutral-700 object-cover"
           />
         ) : (
