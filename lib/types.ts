@@ -23,6 +23,7 @@ export type Product = {
   locked?: boolean;    // para no borrar productos que ya tienen ventas
 };
 
+
 /**
  * SaleItem
  * ------------------------------------------------------------

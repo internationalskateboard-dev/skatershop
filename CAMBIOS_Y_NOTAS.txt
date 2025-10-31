@@ -1,334 +1,94 @@
-Proyecto: Skater Store (Next.js + Zustand)
-Versión base documentada: SKATER-SYNC2-V1.0
-Fuente local: skater-store-sync2.zip
-Repo remoto: https://github.com/internationalskateboard-dev/skater-store.git
-Fecha: (coloca la fecha de este zip)
-Nota: esta es la versión que usaremos tú y yo como punto de partida. Cada cambio que aceptes se documenta aquí y luego tú lo subes a GitHub en tu rama/main.
+SkaterStore Optimizado – Build v1.0 (Octubre 2025)
+=================================================
 
-============================================================
-1. ESTRUCTURA PRINCIPAL DEL PROYECTO
-============================================================
-El proyecto está organizado de forma típica de Next.js 13+ con app router:
+📁 Estructura final del proyecto
+--------------------------------
+app/                      Rutas Next.js (Home, Producto, Carrito, Checkout, Admin)
+components/layout/        Navbar, ClientOnly, FloatingCart, CartBadge
+components/ui/            ProductCard, InputField, etc.
+store/                    Estados globales (Zustand): carrito, productos, ventas
+lib/                      Utilidades y hooks (productos base, useMergedProducts)
+public/                   Imágenes y assets estáticos
+next.config.mjs           Configuración Next.js
+tailwind.config.ts        Configuración TailwindCSS
+tsconfig.json             Configuración TypeScript
+package.json              Dependencias y metadatos del proyecto
 
-- app/
-  - layout.tsx
-  - page.tsx
-  - shop/
-    - page.tsx
-  - products/
-    - [id]/
-      - page.tsx
-  - cart/
-    - page.tsx
-  - checkout/
-    - page.tsx
-  - admin/
-    - page.tsx
+⚙️ Flujo completo del sistema
+-----------------------------
+1. Admin (/admin) crea o actualiza productos con id, nombre, precio, tallas y stock.
+2. Esos productos viven en productStore (Zustand persistido).
+3. La tienda (Home y /products/[id]) usa useMergedProducts para mostrar:
+   - Productos del Admin (prioridad)
+   - Productos base hardcodeados (fallback)
+4. Usuario añade productos al carrito (cartStore). El id incluye talla: "hoodie-black-M".
+5. /cart muestra el carrito, controla que no se sobrepase el stock y avisa si queda poco.
+6. /checkout:
+   - Pide datos de envío (nombre, país, dirección, etc.).
+   - Bloquea PayPal hasta completar esos datos.
+   - Valida stock otra vez antes de crear la orden PayPal (anti-oversell).
+7. onApprove (PayPal ok):
+   - salesStore.addSaleBatch registra cuántas unidades se vendieron de cada producto base.
+   - productStore.reduceStockBatch descuenta stock disponible.
+   - Se vacía el carrito y se muestra mensaje de pago completado.
 
-- components/
-  - layout/
-    - Navbar.tsx
-    - ClientOnly.tsx
-    - CartBadge.tsx
-    - (opcional en esta versión) FloatingCart.tsx
-  - ui/
-    - ProductCard.tsx
-    - (otros que vayamos agregando)
-  - (en algunas versiones anteriores también teníamos una carpeta /components/layout/ClientOnly diferente, pero esta versión toma la última que tú usaste)
+🔐 Seguridad PayPal
+-------------------
+- En PayPalScriptProvider usamos NEXT_PUBLIC_PAYPAL_CLIENT_ID.
+- En local va en .env.local.
+- En Vercel va en las Environment Variables.
+- IMPORTANTE: nunca pongas el secret privado de PayPal en el frontend.
+- En producción real deberías:
+  - Tener una ruta API segura que cree la orden en el server usando el secret.
+  - Verificar la captura del pago en tu backend antes de marcar el pedido como pagado.
 
-- store/
-  - cartStore.ts
-  - productStore.ts
-  - salesStore.ts
+🚀 Despliegue en Vercel (guía rápida)
+-------------------------------------
+1. Sube este repo a GitHub.
+2. En Vercel: "Import Project" → selecciona el repo.
+3. Añade la variable de entorno:
+   NEXT_PUBLIC_PAYPAL_CLIENT_ID = tu Client ID (sandbox o live).
+4. Deploy.
+5. Listo. La tienda queda pública.
 
-- lib/
-  - useMergedProducts.ts
-  - productsBase.ts
+👨‍💻 Guía para nuevos desarrolladores
+------------------------------------
+A) Agregar nuevo producto:
+   - Entra a /admin.
+   - Rellena id único (ej: "hoodie-black"), precio, tallas y stock.
+   - Guardar. Listo, ya aparece en la Home.
 
-- public/
-  - (imágenes que usas como fallback, por ejemplo: /images/hoodie-black.jpg, /images/placeholder.png)
-  - más adelante va a ir el logo en SVG
+B) Cambiar stock de un producto:
+   - Mientras ese producto NO haya tenido ventas, puedes actualizarlo en /admin.
+   - Si ya vendió, se marca como LOCKED y no deja editar ni borrar: debes clonarlo como "hoodie-black-v2".
 
-- tailwind.config.js / postcss.config.js / tsconfig.json
-  - definidos para trabajar con alias "@/..." y con estilos dark
+C) Resetear datos en desarrollo:
+   - Ventas: localStorage.removeItem('skaterstore-sales')
+   - Carrito: localStorage.removeItem('skaterstore-cart')
+   - Productos: localStorage.removeItem('skaterstore-products')
+   (No hagas esto en producción.)
 
-============================================================
-2. DESCRIPCIÓN DE CADA RUTA (APP ROUTER)
-============================================================
+D) Flujo de pago:
+   - /checkout valida dirección/envío del cliente antes de habilitar PayPal.
+   - Antes de crear la orden PayPal revisa stock actual (anti-oversell).
+   - Cuando PayPal confirma, se descuenta stock y se registra la venta.
 
-------------------------------------------------------------
-2.1 app/layout.tsx
-------------------------------------------------------------
-- Layout raíz de la aplicación.
-- Aquí se monta el <html> y <body> y, muy importante, el Navbar global.
-- Todas las páginas pasan por este layout, por eso el Navbar sabe si estás en /admin o no.
-- Asegura que el fondo sea oscuro y que la tipografía sea la misma en toda la web.
+🧠 Futuro siguiente paso
+------------------------
+1. Conectar MongoDB Atlas:
+   - Colección products (id, name, price, stock, sizes…)
+   - Colección orders (items comprados + datos de envío)
+   - Colección sales (histórico total vendido por producto base)
+   Eso permitiría un Admin real multi-dispositivo y stock compartido global, no sólo en localStorage.
 
-------------------------------------------------------------
-2.2 app/page.tsx  (Home / Landing actual)
-------------------------------------------------------------
-- Página de inicio.
-- En esta versión del proyecto, la home es simple: texto de bienvenida, presentación de la tienda, posible CTA hacia /shop.
-- Esta ruta NO es el catálogo; el catálogo está en /shop.
-- Se usa ClientOnly cuando se necesita leer cosas del store en cliente (por ejemplo, contar items del carrito).
+2. App móvil (Expo / React Native):
+   - Se puede consumir la misma API (productos, stock, crear orden).
+   - Notificaciones de "nuevo drop" y "low stock".
+   - Modo offline para ver catálogo sin conexión.
 
-------------------------------------------------------------
-2.3 app/shop/page.tsx  (Catálogo principal)
-------------------------------------------------------------
-- Esta es la **página de tienda real**.
-- Muestra todos los productos disponibles combinando:
-  - los productos base definidos en lib/productsBase.ts
-  - los productos creados por el admin y guardados en store/productStore.ts
-- Para combinar estas dos fuentes usa el hook: **useMergedProducts**.
-  - Este hook es importante porque nos permite tener una tienda “en memoria” sin base de datos todavía.
-  - Cuando pasemos a base de datos, el hook será el punto único donde cambiar la fuente.
-
-- La página muestra:
-  - Título: "Skater Store"
-  - Subtítulo: "Ropa inspirada en la calle..."
-  - Botón de acceso rápido al carrito (muestra número de items):
-    → esto lo saca de useCartStore().countItems()
-  - Grid de productos con <ProductCard />
-
-- Cada tarjeta de producto (ProductCard) ofrece:
-  - Ver → va al detalle: /products/{id}
-  - Añadir → si tiene varias tallas → mandar al detalle; si no, añadir directo al carrito.
-
-------------------------------------------------------------
-2.4 app/products/[id]/page.tsx  (Detalle de producto)
-------------------------------------------------------------
-- Página dinámica.
-- Recibe el id de producto desde la URL.
-- Busca el producto dentro del array unificado (base + admin) usando useMergedProducts.
-- Muestra:
-  - imagen grande (next/image)
-  - nombre
-  - precio
-  - descripción/detalles
-  - selector de talla (solo si el producto tiene tallas)
-  - botones de acción
-
-- Lógica especial ya implementada:
-  - Si el producto YA está en el carrito → el botón muestra “Ya en carrito ✅”
-  - Si cambias de talla **y ese producto ya estaba en el carrito**, se llama a `setItemSize` del cartStore → esto actualiza la talla directamente en el carrito y se muestra un toast verde: “Talla cambiada en el carrito ✅”
-  - Si el producto tiene tallas y NO se ha elegido una → si intentas añadir, muestra toast rojo: “Selecciona una talla antes de añadir.”
-  - Después de añadir al carrito en móvil → aparece botón “Pagar” (link a /checkout) → **solo si el producto actual fue añadido** → no se muestra para otros.
-
-- Esta página es clave porque:
-  - aquí se resuelven las tallas
-  - aquí se asegura que el carrito tenga también la talla
-  - aquí se evita el oversell visual (no deja añadir sin talla)
-
-------------------------------------------------------------
-2.5 app/cart/page.tsx  (Carrito)
-------------------------------------------------------------
-- Página del carrito del usuario.
-- Usa `useCartStore()` directamente.
-- Muestra:
-  - imagen miniatura del producto (si la tiene)
-  - nombre
-  - talla (si el CartItem tiene `size`)
-  - precio unitario
-  - controles de cantidad +/-
-  - botón “Quitar”
-  - total al final
-
-- En una de las últimas versiones restauramos el botón:
-  - “Vaciar carrito” → en rojo, en la parte superior derecha
-  - Usa clearCart() del store.
-
-- Al final de la página hay enlaces:
-  - Ir al Checkout → /checkout
-  - Seguir comprando → /shop
-
-- NOTA: esta página está envuelta en <ClientOnly> porque los stores están en cliente y así evitamos los errores de hidratación que te estaban saliendo al principio.
-
-------------------------------------------------------------
-2.6 app/checkout/page.tsx  (Checkout con PayPal)
-------------------------------------------------------------
-- ESTA es la versión que dijiste: “así quedó mi checkout y lo quiero así sin más cambios de estética”.
-- Contiene 2 columnas (en desktop):
-  1) **Envío & Contacto**
-     - Nombre completo
-     - País
-     - Ciudad
-     - Dirección
-     - Código postal
-     - Teléfono / WhatsApp
-     - Correo / Email
-     - Validación: si falta uno → se muestra un mensaje en rojo “Completa todos los campos...”
-  2) **Resumen**
-     - Lista de productos del carrito
-     - Miniatura (con next/image)
-     - Talla
-     - Cantidad × precio
-     - Totales (productos, envío, descuento, total)
-     - Zona de pago:
-       - Si el formulario está completo → muestra botones de PayPal
-       - Si NO → muestra un aviso amarillo
-
-- PayPal:
-  - Se usa `<PayPalScriptProvider>` con `clientId: "test"` (modo sandbox).
-  - `createOrder` arma:
-    - intent: "CAPTURE"
-    - purchase_units con amount + breakdown
-    - items con nombre + cantidad + precio
-    - si el producto tiene talla → se añade al nombre para que quede claro en PayPal
-  - Antes de crear la orden:
-    - se consulta el `productStore` en memoria
-    - si algún producto no tiene stock suficiente → se muestra alert y NO se crea la orden
-  - `onApprove`:
-    - captura la orden
-    - construye un batch con los productos del carrito
-    - llama a `addSaleBatch(batch)` en `salesStore`
-    - llama a `reduceStockBatch(batch)` en `productStore`
-    - hace `clearCart()`
-    - hace `setPaid(true)` → muestra el bloque verde de éxito
-
-- Estado “pago completado”:
-  - Se muestra una tarjeta verde
-  - Muestra botón “Seguir comprando” que lleva a /shop
-
-- IMPORTANTE:
-  - Dejamos el código para vaciar carrito comentado en el header del checkout (lo tenías así).
-  - No tocamos la estética porque tú dijiste “sin más cambios de estética hasta ahora”.
-
-------------------------------------------------------------
-2.7 app/admin/page.tsx  (Panel Admin)
-------------------------------------------------------------
-- Página protegida por una contraseña muy simple (“skateradmin”), guardando el estado en sessionStorage.
-- Solo cuando el admin se loguea:
-  - aparece el formulario de creación/edición de producto
-  - aparece la lista de productos en memoria
-
-- Formulario:
-  - id (slug único)
-  - nombre
-  - precio
-  - stock
-  - descripción
-  - detalles
-  - tallas (separadas por coma)
-  - **imagen** → aquí está la mejora reciente:
-    - se puede arrastrar una imagen (drag & drop)
-    - o se puede hacer click y seleccionar un archivo
-    - esa imagen se convierte a **base64** y se guarda como `image` en el producto
-    - se muestra un preview inmediato
-    - este enfoque sirve para que NO tengamos que tocar backend todavía
-    - más adelante se puede reemplazar esa base64 por una URL remota y el resto del código no se rompe
-
-- Lista de productos:
-  - se muestra el stock
-  - se muestra la talla
-  - se muestra el precio
-  - si el producto tiene ventas → se muestra “LOCKED” y NO permite borrarlo
-  - si está locked → permite “Clonar como nuevo” para no perder el diseño, pero crea uno con id `-v2`
-
-============================================================
-3. STORES (ZUSTAND) EN ESTA VERSIÓN
-============================================================
-
-------------------------------------------------------------
-3.1 /store/cartStore.ts
-------------------------------------------------------------
-- Estructura del item:
-  - id: string
-  - name: string
-  - price: number
-  - qty: number
-  - image?: string
-  - size?: string   ← esto lo agregamos para que el carrito y checkout puedan mostrar la talla
-- Métodos importantes:
-  - addToCart(item)
-    - si el item ya existe → suma cantidad y actualiza image/size
-    - si no existe → lo añade
-  - removeFromCart(id)
-  - updateQty(id, qty)
-  - setItemSize(id, size)  ← lo usamos en la página de detalle cuando el usuario cambia de talla sobre un artículo ya añadido
-  - clearCart()
-  - total()
-  - countItems()
-- Está envuelto con persist (localStorage) para que el carrito no se pierda al recargar.
-
-------------------------------------------------------------
-3.2 /store/productStore.ts
-------------------------------------------------------------
-- Guarda los productos que se crean desde el admin.
-- Cada producto tiene:
-  - id
-  - name
-  - price
-  - image (a veces base64)
-  - desc
-  - details
-  - sizes (array)
-  - stock (number)
-- Tiene métodos para reducir stock en batch: `reduceStockBatch(batch)`
-- También tiene el método para agregar productos desde admin: `addProduct(newProduct)`
-
-------------------------------------------------------------
-3.3 /store/salesStore.ts
-------------------------------------------------------------
-- Se encarga de registrar las ventas que se han hecho (en memoria).
-- Tiene método `getSoldQty(productId)` → esto lo usa el admin para saber si puede borrar o editar un producto.
-- Tiene `addSaleBatch` → lo usamos en checkout cuando PayPal confirma el pago.
-
-============================================================
-4. COMPONENTES PRINCIPALES
-============================================================
-
-------------------------------------------------------------
-4.1 components/layout/Navbar.tsx
-------------------------------------------------------------
-- Se renderiza en el layout global.
-- Usa `usePathname()` para saber en qué ruta estás.
-- Si la ruta empieza por `/admin` → oculta el carrito.
-- Muestra enlaces a:
-  - Home (/)
-  - Tienda (/shop)
-  - Carrito (/cart)
-- El logo ahora mismo es texto:
-  - SKATER (amarillo) + STORE (blanco)
-  - ya te dejé una versión en SVG amarillo para que luego lo sustituya
-
-------------------------------------------------------------
-4.2 components/ui/ProductCard.tsx
-------------------------------------------------------------
-- Recibe `product` como prop.
-- Muestra imagen, nombre, precio, descripción.
-- Botón “Ver” → /products/{id}
-- Botón “Añadir” → 
-  - si el producto tiene varias tallas → ir al detalle
-  - si no → añadir directo al carrito
-- Usa next/image (se corrigió el warning de <img>).
-
-------------------------------------------------------------
-4.3 components/layout/ClientOnly.tsx
-------------------------------------------------------------
-- Pequeño wrapper para que el contenido solo se pinte en el cliente.
-- Lo usamos en páginas que leen de Zustand para evitar hydration mismatch.
-
-============================================================
-5. CONVENCIÓN DE VERSIONADO (acordada)
-============================================================
-- Palabra clave de hoy: **SKATER-SYNC2-V1.0**
-  - significa: “esta es la versión que viene de skater-store-sync2.zip”
-  - todo lo que hagamos luego, lo vamos anotando debajo de este archivo
-
-- Para siguientes días:
-  - SYNC-GIT → me dices el último commit
-  - yo te doy los cambios basados en ese commit
-  - tú los subes
-
-============================================================
-6. PENDIENTE / PRÓXIMOS PASOS
-============================================================
-- Extraer las imágenes base64 del admin a una carpeta real (public/uploads) o a un backend.
-- Añadir vista “Home de contenido” distinta a /shop para meter texto de marca.
-- Añadir control de “no mostrar mini carrito en móvil dentro de detalle” (ya lo teníamos a medias).
-- Añadir doc de rutas: /shop es la principal, /products/[id] es detalle → ya documentado arriba.
-- Añadir pruebas de PayPal con clientId real.
-
-============================================================
-FIN DEL ARCHIVO
-============================================================
+🎨 Identidad y UX de marca
+--------------------------
+- Paleta negro / gris / amarillo ya da una identidad skater/street.
+- Recomendación: mostrar "DROP LIMITADO" o "QUEDAN 2" en ProductCard cuando stock es bajo.
+- Agregar redes sociales / IG al footer aumenta confianza.
+- Después del pago, redirigir a /order/success con resumen de pedido + mensaje "te contactamos por WhatsApp" crea experiencia pro.
