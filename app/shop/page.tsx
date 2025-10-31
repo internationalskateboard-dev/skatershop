@@ -1,64 +1,66 @@
+"use client";
+
 /**
  * ShopPage
  * ------------------------------------------------------------
  * Página principal de la tienda / catálogo.
  *
  * ✅ Qué hace:
- * - Muestra todos los productos disponibles combinando:
- *    → Los creados por el admin (productStore)
- *    → Los productos base precargados (lib/productsBase)
- * - Cada producto se muestra con <ProductCard />.
- * - Permite acceder al carrito o al detalle de producto.
- *
- * 💡 Contexto:
- * - Esta es la página vinculada a la ruta `/shop`.
- * - Sustituye la antigua `/products` como catálogo principal.
- * - Usa `ClientOnly` para evitar errores de SSR,
- *   ya que `useCartStore` y `useMergedProducts` viven en el cliente.
- *
- * 🧠 Mejoras de esta versión:
- * - Tipado básico del producto en el map (sin `any` implícito).
- * - Se mantiene coherencia con la constante de imagen placeholder global.
- * - Preparada para futuras paginaciones o filtros en cliente.
+ * - Intenta cargar productos desde la API (/api/products)
+ * - Si la API falla → usa los productos del store (Zustand)
+ * - Siempre completa con los productos base (lib/productsBase)
+ * - Muestra la fuente usada: API / Local / Base
+ * - Renderiza las tarjetas con <ProductCard />
+ * - Botón rápido al carrito
  */
-
-"use client";
 
 import Link from "next/link";
 import ClientOnly from "@/components/layout/ClientOnly";
 import ProductCard from "@/components/ui/ProductCard";
 import useCartStore from "@/store/cartStore";
 import useMergedProducts from "@/lib/useMergedProducts";
-import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
-
-// Tipado mínimo del producto que viene del hook useMergedProducts
-type ShopProduct = {
-  id: string;
-  name: string;
-  price: number | string;
-  desc?: string;
-  image?: string;
-  sizes?: string[];
-};
 
 export default function ShopPage() {
   // Estado global del carrito (Zustand)
   const cartCount = useCartStore((s) => s.countItems());
 
-  // Productos combinados: admin + base
-  const { products } = useMergedProducts() as { products: ShopProduct[] };
+  // Productos combinados: api → local → base
+  const { products, source, loading, error } = useMergedProducts();
 
   return (
     <ClientOnly>
       <div className="text-white">
         {/* Header de la tienda */}
-        <section className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <section className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold uppercase tracking-tight font-display">
               Skater Shop
             </h1>
             <p className="text-neutral-400 max-w-md text-sm leading-relaxed">
               Ropa inspirada en la calle, hecha para patinar. Drop limitado.
+            </p>
+
+            {/* Fuente de productos */}
+            <p className="mt-2 text-[11px] text-neutral-500">
+              Fuente:{" "}
+              <span
+                className={
+                  source === "api"
+                    ? "text-green-400"
+                    : source === "local"
+                    ? "text-yellow-400"
+                    : "text-neutral-300"
+                }
+              >
+                {source === "api"
+                  ? "API"
+                  : source === "local"
+                  ? "Local (Zustand)"
+                  : "Base"}
+              </span>
+              {error ? (
+                <span className="ml-2 text-red-400">{error}</span>
+              ) : null}
             </p>
           </div>
 
@@ -71,22 +73,19 @@ export default function ShopPage() {
           </Link>
         </section>
 
-        {/* Render condicional: productos o aviso vacío */}
-        {products.length === 0 ? (
+        {/* Estados de carga / vacío / lista */}
+        {loading ? (
+          <p className="text-neutral-500 text-sm mt-10">
+            Cargando productos...
+          </p>
+        ) : products.length === 0 ? (
           <p className="text-neutral-500 text-sm mt-10">
             No hay productos disponibles todavía.
           </p>
         ) : (
-          <section className="grid md:grid-cols-2 gap-6 mt-10">
+          <section className="grid md:grid-cols-2 gap-6 mt-4">
             {products.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={{
-                  ...p,
-                  // fallback seguro de imagen
-                  image: p.image || PRODUCT_PLACEHOLDER_IMAGE,
-                }}
-              />
+              <ProductCard key={p.id} product={p} />
             ))}
           </section>
         )}
