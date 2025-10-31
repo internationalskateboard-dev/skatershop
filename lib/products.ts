@@ -1,3 +1,5 @@
+// Ver quien lo llama
+
 export type Product = {
   id: string
   name: string
