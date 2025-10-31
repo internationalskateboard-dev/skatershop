@@ -39,7 +39,7 @@ export default function ShopPage() {
         <section className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold uppercase tracking-tight font-display">
-              Skater Store
+              Skater Shop
             </h1>
             <p className="text-neutral-400 max-w-md text-sm leading-relaxed">
               Ropa inspirada en la calle, hecha para patinar. Drop limitado.
