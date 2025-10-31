@@ -18,7 +18,7 @@ const productsBase: Product[] = [
     price: 23.9,
     desc: "Sudadera negra oversize.",
     details: "Algodón, impresión frontal y trasera.",
-    image: "/images/hoodie-black.jpg",
+    image: "/images/sueter_azul.png",
     sizes: ["S", "M", "L", "XL"],
     stock: 10,
   }
