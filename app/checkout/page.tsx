@@ -7,7 +7,8 @@
  * - Resumen con miniaturas, tallas y subtotales.
  * - PayPal sandbox (clientId: "test") activado sólo si el formulario está completo.
  * - Registra ventas y reduce stock al aprobar el pago.
- * - Usa el mismo placeholder global que la tienda.
+ * - 🔁 NUEVO: además de registrar en stores, envía el checkout a /api/checkout
+ *   para ir acostumbrando el frontend a usar el backend.
  */
 
 import { useState } from "react";
@@ -21,7 +22,7 @@ import Link from "next/link";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useCartStore();
+  const { cart, clearCart, total } = useCartStore();
   const reduceStockBatch = useProductStore((s) => s.reduceStockBatch);
   const addSaleBatch = useSalesStore((s) => s.addSaleBatch);
 
@@ -50,9 +51,9 @@ export default function CheckoutPage() {
     setShipping({ ...shipping, [e.target.name]: e.target.value });
   };
 
-  // Totales seguros
+  // Totales
   const itemsTotal = cart
-    .reduce((acc, it) => acc + Number(it.price ?? 0) * it.qty, 0)
+    .reduce((acc, it) => acc + it.price * it.qty, 0)
     .toFixed(2);
 
   const shippingCost = "0.00";
@@ -64,31 +65,63 @@ export default function CheckoutPage() {
     parseFloat(discount)
   ).toFixed(2);
 
+  // 🔁 función auxiliar para mandar al backend
+  const sendCheckoutToApi = async () => {
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        body: JSON.stringify({
+          items: cart.map((it) => ({
+            productId: it.id,
+            qty: it.qty,
+            size: it.size,
+          })),
+          customer: {
+            fullName: shipping.fullName,
+            email: shipping.email,
+            phone: shipping.phone,
+            country: shipping.country,
+            adresse: shipping.adresse,
+            city: shipping.city,
+            zip: shipping.zip,
+          },
+          total: Number(grandTotal),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        alert(
+          "No se pudo registrar el pedido en el servidor por falta de stock:\n\n" +
+            (data?.details?.join("\n") || "Stock insuficiente")
+        );
+        // ⚠️ aquí NO devolvemos error duro, porque el pago ya se hizo
+        return;
+      }
+
+      if (!res.ok) {
+        console.warn("[checkout] backend devolvió error genérico");
+      }
+    } catch (err) {
+      console.warn("[checkout] no se pudo contactar /api/checkout:", err);
+      // no bloqueamos el flujo del usuario, solo lo informamos por consola
+    }
+  };
+
   return (
     <ClientOnly>
       <div className="text-white">
-        {/* Header + Vaciar carrito (lo dejas comentado, como tenías) */}
+        {/* Header + Vaciar carrito (lo tenías comentado) */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Checkout</h2>
-
-          {/* 
-          {cart.length > 0 && !paid && (
-            <button
-              onClick={clearCart}
-              className="text-xs font-semibold bg-red-500/20 border border-red-500/40 text-red-400 px-3 py-2 rounded-lg hover:bg-red-500/30 hover:text-red-300 transition"
-            >
-              Vaciar carrito
-            </button>
-          )}
-          */}
         </div>
 
-        {/* ✅ Pago completado */}
         {paid ? (
           <div className="bg-green-700/20 border border-green-600 rounded-xl p-6">
-            <h3 className="text-xl font-bold text-green-400">
-              ✅ Pago completado
-            </h3>
+            <h3 className="text-xl font-bold text-green-400">✅ Pago completado</h3>
             <p className="text-neutral-300 text-sm mt-2">
               Gracias por tu compra. Te contactaremos para coordinar el envío.
             </p>
@@ -102,7 +135,6 @@ export default function CheckoutPage() {
             </div>
           </div>
         ) : cart.length === 0 ? (
-          // 🛒 Carrito vacío
           <div className="text-center py-10">
             <p className="text-neutral-400 mb-6">
               No hay productos en tu pedido.
@@ -115,7 +147,7 @@ export default function CheckoutPage() {
             </Link>
           </div>
         ) : (
-          // 🧱 Grid principal: formulario + resumen
+          // Grid principal: formulario + resumen
           <div className="grid md:grid-cols-2 gap-10">
             {/* ------- Envío & Contacto ------- */}
             <section>
@@ -173,8 +205,8 @@ export default function CheckoutPage() {
               )}
 
               <p className="text-neutral-500 text-xs mt-4">
-                Usamos estos datos únicamente para enviar tu pedido y
-                contactarte si hiciera falta.
+                Usamos estos datos únicamente para enviar tu pedido y contactarte
+                si hiciera falta.
               </p>
             </section>
 
@@ -184,48 +216,47 @@ export default function CheckoutPage() {
 
               {/* Lista de items */}
               <ul className="space-y-3 text-sm">
-                {cart.map((it) => {
-                  const unitPrice = Number(it.price ?? 0);
-                  const lineTotal = unitPrice * it.qty;
-
-                  return (
-                    <li
-                      key={it.id}
-                      className="flex items-start justify-between border-b border-neutral-800 pb-3"
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* Miniatura */}
-                        <div className="w-14 h-14 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
-                          <Image
-                            src={it.image || PRODUCT_PLACEHOLDER_IMAGE}
-                            alt={it.name ?? "producto"}
-                            width={56}
-                            height={56}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-
-                        <div>
-                          <p className="font-semibold text-white leading-snug">
-                            {it.name}
-                          </p>
-                          {it.size && (
-                            <p className="text-[12px] text-neutral-400 leading-snug">
-                              Talla: {it.size}
-                            </p>
-                          )}
-                          <p className="text-neutral-500 text-[12px] leading-snug">
-                            {it.qty} × €{unitPrice.toFixed(2)}
-                          </p>
-                        </div>
+                {cart.map((it) => (
+                  <li
+                    key={it.id}
+                    className="flex items-start justify-between border-b border-neutral-800 pb-3"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Miniatura */}
+                      <div className="w-14 h-14 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
+                        <Image
+                          src={
+                            typeof it.image === "string" && it.image.length > 0
+                              ? it.image
+                              : PRODUCT_PLACEHOLDER_IMAGE
+                          }
+                          alt={it.name ?? "producto"}
+                          width={56}
+                          height={56}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
 
-                      <div className="text-right text-yellow-400 font-semibold text-sm">
-                        €{lineTotal.toFixed(2)}
+                      <div>
+                        <p className="font-semibold text-white leading-snug">
+                          {it.name}
+                        </p>
+                        {it.size && (
+                          <p className="text-[12px] text-neutral-400 leading-snug">
+                            Talla: {it.size}
+                          </p>
+                        )}
+                        <p className="text-neutral-500 text-[12px] leading-snug">
+                          {it.qty} × €{it.price.toFixed(2)}
+                        </p>
                       </div>
-                    </li>
-                  );
-                })}
+                    </div>
+
+                    <div className="text-right text-yellow-400 font-semibold text-sm">
+                      €{(it.price * it.qty).toFixed(2)}
+                    </div>
+                  </li>
+                ))}
               </ul>
 
               {/* Totales */}
@@ -267,7 +298,6 @@ export default function CheckoutPage() {
                         // 🔎 Validación de stock local antes de crear la orden
                         const productStore = useProductStore.getState();
                         const outOfStock: string[] = [];
-
                         cart.forEach((it) => {
                           const p = productStore.products.find(
                             (x) => x.id === it.id
@@ -288,14 +318,14 @@ export default function CheckoutPage() {
                           throw new Error("Stock insuficiente");
                         }
 
-                        // Items PayPal (incluimos talla en el nombre si existe)
+                        // Items PayPal
                         const items = cart.map((it) => ({
                           name: it.size
                             ? `${it.name} - Talla ${it.size}`
                             : it.name,
                           unit_amount: {
                             currency_code: "EUR",
-                            value: Number(it.price ?? 0).toFixed(2),
+                            value: it.price.toFixed(2),
                           },
                           quantity: it.qty.toString(),
                         }));
@@ -332,12 +362,12 @@ export default function CheckoutPage() {
                         try {
                           const details = await actions.order.capture();
 
-                          // Construir lote de ventas y de reducción de stock
+                          // 1) Guardar en stores (lo que ya hacías)
                           const batch = cart.map((it) => ({
                             productId: it.id,
                             qty: it.qty,
                           }));
-                        //
+
                           addSaleBatch(batch, {
                             total: Number(grandTotal),
                             customer: {
@@ -345,19 +375,22 @@ export default function CheckoutPage() {
                               email: shipping.email,
                               phone: shipping.phone,
                               country: shipping.country,
+                              adresse: shipping.adresse,
+                              city: shipping.city,
+                              zip: shipping.zip,
                             },
                           });
-                          //
+
                           reduceStockBatch(batch);
 
+                          // 2) 🔁 Mandar también al backend
+                          await sendCheckoutToApi();
+
+                          // 3) Limpiar carrito y mostrar éxito
                           clearCart();
                           setPaid(true);
-                          console.log(
-                            "ORDER DETAILS:",
-                            details,
-                            shipping,
-                            cart
-                          );
+
+                          console.log("ORDER DETAILS:", details, shipping, cart);
                         } catch (err) {
                           console.error("PayPal capture error:", err);
                         }
@@ -369,8 +402,7 @@ export default function CheckoutPage() {
                   </PayPalScriptProvider>
                 ) : (
                   <div className="border border-yellow-400/40 bg-neutral-900 rounded-xl p-4 text-sm text-yellow-400 text-center">
-                    ⚠️ Completa todos los campos de envío y contacto para
-                    habilitar el pago.
+                    ⚠️ Completa todos los campos de envío y contacto para habilitar el pago.
                   </div>
                 )}
               </div>
@@ -384,7 +416,6 @@ export default function CheckoutPage() {
 
 /* -----------------------------
  * InputField
- * Estilo dark + focus amarillo
  * ----------------------------- */
 function InputField({
   label,
