@@ -59,3 +59,41 @@ export function removeProductFromMemory(id: string): boolean {
   productsMemory.splice(idx, 1);
   return true;
 }
+
+
+Próximos pasos (para la siguiente sesión)
+
+🧭 Dashboard modular de administración
+
+Crear AdminDashboardLayout.tsx
+
+Rutas internas:
+/admin/products, /admin/sales, /admin/settings
+
+Menú lateral con navegación y persistencia de vista.
+
+🧹 Refactor visual
+
+Mover componentes del admin a /components/admin/*
+
+Mantener estilos consistentes (fondo neutro, tipografía display).
+
+📊 Filtros avanzados de ventas
+
+Filtrar por fecha / rango / cliente (frontend)
+
+Export CSV filtrado
+
+⚙️ Persistencia simulada
+
+Opcional: montar mock DB (json-server o localStorage persistente)
+
+Conexión a Supabase o backend Express en siguiente fase.
+
+🪣 Preparar migración a backend real
+
+Modularizar /api
+
+Mantener contrato Product / SaleRecord
+
+Añadir logs / errores consistentes
