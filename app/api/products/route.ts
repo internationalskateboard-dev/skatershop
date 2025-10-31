@@ -1,15 +1,19 @@
+// app/api/products/route.ts
 import { NextResponse } from "next/server";
+import useProductStore from "@/store/productStore";
 import type { Product } from "@/lib/types";
-import useProductStore from "@/store/productStore"; // lo estás usando en cliente; aquí lo usamos igual de forma simple
 
-// GET /api/products
-// Devuelve la lista de productos creados en el admin.
-// (Más adelante aquí puedes mezclar productsBase.ts + productos de DB)
+/**
+ * GET /api/products
+ * ------------------------------------------------------------
+ * Devuelve TODOS los productos que hay actualmente en el store
+ * (los creados desde admin). Más adelante aquí podemos mezclar
+ * los `productsBase` si quieres que también salgan en la API.
+ */
 export async function GET() {
-  // ⚠️ En un Next real de prod no leeríamos Zustand así,
-  // pero para tu fase "sin backend" esto es válido.
+  // leemos directamente el estado actual del store
   const state = useProductStore.getState();
-  const products: Product[] = state.products || [];
+  const products = state.products ?? [];
 
   return NextResponse.json(
     {
@@ -21,29 +25,71 @@ export async function GET() {
   );
 }
 
-// POST /api/products
-// Crea o actualiza un producto (very simple)
-// ⚠️ Esto NO está autenticado todavía.
+/**
+ * POST /api/products
+ * ------------------------------------------------------------
+ * Crea o ACTUALIZA un producto.
+ * Acepta los campos avanzados del admin:
+ * - colors?: { name: string; image?: string }[]
+ * - sizeGuide?: string
+ *
+ * ⚠️ No hay auth todavía → pendiente fase backend.
+ */
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Product;
-    const { id, name, price } = body;
 
-    if (!id || !name || typeof price !== "number") {
+    // validaciones mínimas
+    if (!body.id || !body.name || typeof body.price !== "number") {
       return NextResponse.json(
-        { ok: false, message: "id, name y price son obligatorios" },
+        {
+          ok: false,
+          message: "id, name y price son obligatorios",
+        },
         { status: 400 }
       );
     }
 
-    const store = useProductStore.getState();
-    store.addProduct(body);
+    // normalizar campos opcionales para no perderlos
+    const payload: Product = {
+      id: body.id,
+      name: body.name,
+      price: body.price,
+      desc: body.desc ?? "",
+      details: body.details ?? "",
+      image: body.image ?? "",
+      sizes: Array.isArray(body.sizes) ? body.sizes : [],
+      stock: typeof body.stock === "number" ? body.stock : 0,
+      locked: body.locked ?? false,
+      colors: Array.isArray(body.colors) ? body.colors : [],
+      sizeGuide: body.sizeGuide ?? "",
+    };
 
-    return NextResponse.json({ ok: true, product: body }, { status: 201 });
+    const store = useProductStore.getState();
+    const current = store.findById(payload.id);
+
+    if (current) {
+      // si existe → actualizar sin perder los campos nuevos
+      store.updateProduct(payload.id, payload);
+    } else {
+      // si no existe → crear
+      store.addProduct(payload);
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        product: payload,
+      },
+      { status: current ? 200 : 201 }
+    );
   } catch (err) {
     console.error("POST /api/products error:", err);
     return NextResponse.json(
-      { ok: false, message: "Error al crear producto" },
+      {
+        ok: false,
+        message: "Error al crear/actualizar el producto",
+      },
       { status: 500 }
     );
   }
