@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import useMergedProducts from "@/lib/useMergedProducts";
 import useCartStore from "@/store/cartStore";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 
 type ToastState = { show: boolean; kind: "success" | "error"; text: string };
 
@@ -103,7 +104,7 @@ export default function ProductDetailPage() {
       {/* Imagen */}
       <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950">
         <Image
-          src={product.image || "/images/placeholder.png"}
+          src={product.image || PRODUCT_PLACEHOLDER_IMAGE}
           alt={product.name}
           fill
           className="object-cover"

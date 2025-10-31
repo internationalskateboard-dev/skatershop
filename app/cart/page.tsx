@@ -4,6 +4,7 @@ import ClientOnly from "@/components/layout/ClientOnly";
 import useCartStore from "@/store/cartStore";
 import Link from "next/link";
 import Image from "next/image";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, clearCart, total } = useCartStore();
@@ -46,7 +47,7 @@ export default function CartPage() {
                   <div className="w-16 h-16 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
                     {it.image ? (
                       <Image
-                        src={it.image}
+                        src={it.image || PRODUCT_PLACEHOLDER_IMAGE}
                         alt={it.name ?? "producto"}
                         width={64}
                         height={64}
