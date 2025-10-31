@@ -21,16 +21,7 @@ const productsBase: Product[] = [
     image: "/images/hoodie-black.jpg",
     sizes: ["S", "M", "L", "XL"],
     stock: 10,
-  },
-  {
-    id: "tshirt-classic",
-    name: "T-Shirt Classic",
-    price: 7.9,
-    desc: "Camiseta corte regular.",
-    image: "/images/tshirt-classic.jpg",
-    sizes: ["M", "L"],
-    stock: 15,
-  },
+  }
   // ...los que ya tenías
 ];
 
