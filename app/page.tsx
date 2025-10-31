@@ -15,9 +15,9 @@ export default function HomePage() {
       <div className="max-w-4xl mx-auto text-center space-y-8">
         {/* LOGO O TÍTULO */}
         <h1 className="text-4xl md:text-5xl font-display font-bold text-yellow-400">
-          Bienvenido a SkaterStore 🛹
+          Bienvenido a Skater Shop 🛹
         </h1>
-
+        
         {/* SUBTÍTULO */}
         <p className="text-neutral-300 text-lg max-w-2xl mx-auto">
           Esta es la página de inicio provisional. Aquí podrás colocar
