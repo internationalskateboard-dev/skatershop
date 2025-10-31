@@ -21,9 +21,8 @@
  * - Si la API falla → guarda igual en el store local
  * - Muestra “Fuente: API / Local (Zustand)”
  *
- * NOTA:
- * - Sigue siendo auth simple en cliente con sessionStorage.
- * - Las imágenes se siguen guardando en base64.
+ * ✅ Nuevo:
+ * - Sección “Últimas ventas” que lee /api/sales
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -34,9 +33,9 @@ import Image from "next/image";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 
-const ADMIN_PASS = "skateradmin"; // cámbiala en producción
+const ADMIN_PASS = "skateradmin";
 
-// 👇 tallas que mostraremos como botones por defecto
+// tallas por defecto
 const DEFAULT_SIZE_OPTIONS = [
   "XS",
   "S",
@@ -44,11 +43,10 @@ const DEFAULT_SIZE_OPTIONS = [
   "L",
   "XL",
   "XXL",
-  "ONE SIZE", // 👈 aquí la nueva
+  "ONE SIZE",
 ];
 
 export default function AdminPage() {
-  // store local
   const {
     products: localProducts,
     addProduct,
@@ -60,23 +58,18 @@ export default function AdminPage() {
     updateProduct: (id: string, data: any) => void;
     removeProduct: (id: string) => void;
   };
+
   const getSoldQty = useSalesStore((s) => s.getSoldQty);
 
-  // --- auth local ---
   const [authed, setAuthed] = useState(false);
   const [passInput, setPassInput] = useState("");
 
-  // --- fuente de datos (API o local) ---
   const [source, setSource] = useState<"api" | "local">("local");
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * --- formulario del producto ---
-   * selectedSizes: array interno que vamos a ir marcando con los botones
-   */
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -90,19 +83,10 @@ export default function AdminPage() {
     sizeGuide: "",
   });
 
-  // preview visual de la imagen principal
   const [preview, setPreview] = useState<string>("");
-
-  // estado visual del drag&drop de la imagen principal
   const [isDragging, setIsDragging] = useState(false);
-
-  // ref al <input type="file" /> escondido para la imagen principal
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  /**
-   * aquí guardamos las imágenes específicas de cada color
-   * forma: [{ name: "Negro", image: "data:image/..." }]
-   */
   const [colorImages, setColorImages] = useState<
     { name: string; image: string }[]
   >([]);
@@ -113,7 +97,7 @@ export default function AdminPage() {
     if (ok === "yes") setAuthed(true);
   }, []);
 
-  // cuando se autentica → intentamos leer desde API
+  // cargar productos desde API (o local)
   useEffect(() => {
     if (!authed) return;
 
@@ -162,7 +146,6 @@ export default function AdminPage() {
     }
   }
 
-  // cambios de campos de texto/textarea del form
   function handleChangeTextField(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
@@ -203,7 +186,7 @@ export default function AdminPage() {
     if (file) handleFileSelected(file);
   }
 
-  // imagen para un color concreto
+  // imagen por color
   function handleColorImageUpload(colorName: string, file: File) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -221,34 +204,22 @@ export default function AdminPage() {
     reader.readAsDataURL(file);
   }
 
-  /**
-   * Tallas (botones)
-   * - si se pulsa ONE SIZE → queda solo esa
-   * - si ONE SIZE está activa y se pulsa otra → quitamos ONE SIZE y activamos la otra
-   * - si se pulsa una activa → se desactiva
-   */
+  // tallas
   function toggleSize(size: string) {
     setForm((prev) => {
       const already = prev.selectedSizes.includes(size);
 
-      // caso especial: ONE SIZE
       if (size === "ONE SIZE") {
-        return {
-          ...prev,
-          selectedSizes: ["ONE SIZE"], // solo esa
-        };
+        return { ...prev, selectedSizes: ["ONE SIZE"] };
       }
 
-      // si ya está activa esa talla normal → la quitamos
       if (already) {
-        const next = prev.selectedSizes.filter((s) => s !== size);
         return {
           ...prev,
-          selectedSizes: next,
+          selectedSizes: prev.selectedSizes.filter((s) => s !== size),
         };
       }
 
-      // si NO está activa y actualmente está ONE SIZE → la quitamos
       const withoutOneSize = prev.selectedSizes.filter(
         (s) => s !== "ONE SIZE"
       );
@@ -260,7 +231,7 @@ export default function AdminPage() {
     });
   }
 
-  // guardar producto (API → fallback local) usando TU forma de producto
+  // guardar
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -275,16 +246,13 @@ export default function AdminPage() {
       return;
     }
 
-    // ✅ tallas vienen del selector de botones
     const sizes = form.selectedSizes;
 
-    // colores -> array de nombres
     const colorNames = form.colorsText
       .split(",")
       .map((c) => c.trim())
       .filter(Boolean);
 
-    // colores -> array de objetos {name, image}
     const colors =
       colorNames.length > 0
         ? colorNames.map((name) => {
@@ -296,7 +264,6 @@ export default function AdminPage() {
           })
         : [];
 
-    // producto final en TU shape
     const newProduct: any = {
       id: form.id.trim(),
       name: form.name.trim(),
@@ -310,14 +277,11 @@ export default function AdminPage() {
       sizeGuide: form.sizeGuide?.trim?.() ?? "",
     };
 
-    // 1) intentar guardar en API
     try {
       const res = await fetch("/api/products", {
         method: "POST",
         body: JSON.stringify(newProduct),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!res.ok) throw new Error("API no disponible");
@@ -325,7 +289,6 @@ export default function AdminPage() {
       setSaveMessage("Producto guardado en API ✅");
       setSource("api");
 
-      // actualizamos listado en pantalla
       setProducts((prev) => {
         const exists = prev.find((p) => p.id === newProduct.id);
         if (exists) {
@@ -334,14 +297,13 @@ export default function AdminPage() {
         return [...prev, newProduct];
       });
 
-      // sincronizamos local también para que la tienda lo vea
       updateProduct(newProduct.id, newProduct);
     } catch (err) {
       console.warn("[Admin] API no disponible, guardando en local:", err);
 
-      // 2) fallback: Zustand local
       addProduct(newProduct);
       updateProduct(newProduct.id, newProduct);
+
       setProducts((prev) => {
         const exists = prev.find((p) => p.id === newProduct.id);
         if (exists) {
@@ -349,11 +311,12 @@ export default function AdminPage() {
         }
         return [...prev, newProduct];
       });
+
       setSaveMessage("Producto guardado LOCALMENTE (API no disponible) ⚠️");
       setSource("local");
     }
 
-    // reset Limpiar formulario para el siguiente producto
+    // reset form
     setForm({
       id: "",
       name: "",
@@ -372,7 +335,7 @@ export default function AdminPage() {
     setTimeout(() => setSaveMessage(null), 3000);
   }
 
-  // cargar un producto en el form (para editar / clonar)
+  // cargar en form (editar / clonar)
   function loadProductToForm(p: any, cloneAsNew = false) {
     const isTruncated =
       typeof p.image === "string" && p.image.includes("...truncated");
@@ -384,9 +347,10 @@ export default function AdminPage() {
       imageData: !isTruncated && p.image ? p.image : "",
       desc: p.desc ?? "",
       details: p.details ?? "",
-      selectedSizes: Array.isArray(p.sizes) && p.sizes.length
-        ? p.sizes
-        : ["S", "M", "L", "XL"],
+      selectedSizes:
+        Array.isArray(p.sizes) && p.sizes.length
+          ? p.sizes
+          : ["S", "M", "L", "XL"],
       stock: p.stock !== undefined ? String(p.stock) : "1",
       colorsText: p.colors?.length
         ? p.colors.map((c: any) => c.name).join(",")
@@ -394,7 +358,6 @@ export default function AdminPage() {
       sizeGuide: p.sizeGuide ?? "",
     });
 
-    // reconstruir imágenes por color
     if (p.colors?.length) {
       setColorImages(
         p.colors.map((c: any) => ({
@@ -437,7 +400,6 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* ------- LOGIN ADMIN ------- */}
         {!authed ? (
           <form
             onSubmit={handleAuth}
@@ -506,7 +468,6 @@ export default function AdminPage() {
                   placeholder="10"
                 />
 
-                {/* Imagen principal */}
                 <ImageDropField
                   label="Imagen del producto"
                   hint="Arrastra una imagen aquí o haz click para seleccionar"
@@ -526,7 +487,6 @@ export default function AdminPage() {
                   onChange={onFileInputChange}
                 />
 
-                {/* Descripción corta */}
                 <TextareaField
                   label="Descripción corta"
                   name="desc"
@@ -535,7 +495,6 @@ export default function AdminPage() {
                   placeholder="Hoodie oversize negro con logo bordado."
                 />
 
-                {/* Detalles largos */}
                 <TextareaField
                   label="Detalles largos"
                   name="details"
@@ -544,7 +503,6 @@ export default function AdminPage() {
                   placeholder="Fit relajado, algodón pesado, 450gsm..."
                 />
 
-                {/* 🎯 Selector de tallas (con ONE SIZE) */}
                 <div className="md:col-span-2">
                   <span className="text-neutral-300 text-sm block mb-2">
                     Tallas disponibles
@@ -569,12 +527,11 @@ export default function AdminPage() {
                     })}
                   </div>
                   <p className="text-[11px] text-neutral-500 mt-2">
-                    Haz click para activar o desactivar tallas. Si seleccionas{" "}
-                    <strong>ONE SIZE</strong>, se desactivarán todas las demás.
+                    Si seleccionas <strong>ONE SIZE</strong>, se desactivan las
+                    demás.
                   </p>
                 </div>
 
-                {/* 📏 guía de tallas */}
                 <TextareaField
                   label="Guía / Medidas por talla (opcional)"
                   name="sizeGuide"
@@ -583,7 +540,6 @@ export default function AdminPage() {
                   placeholder={`S: pecho 50cm, largo 70cm\nM: pecho 52cm, largo 72cm\nL: pecho 54cm, largo 74cm`}
                 />
 
-                {/* Colores */}
                 <InputField
                   label="Colores (separados por coma)"
                   name="colorsText"
@@ -593,7 +549,6 @@ export default function AdminPage() {
                   className="md:col-span-2"
                 />
 
-                {/* Subida por color */}
                 {form.colorsText
                   .split(",")
                   .map((c) => c.trim())
@@ -645,7 +600,6 @@ export default function AdminPage() {
                     const soldQty = getSoldQty(p.id);
                     const locked = soldQty > 0;
 
-                    // detectar si imagen viene truncada por el store
                     const isTruncated =
                       typeof p.image === "string" &&
                       p.image.includes("...truncated");
@@ -692,7 +646,8 @@ export default function AdminPage() {
 
                           {p.colors?.length ? (
                             <p className="text-neutral-400 text-xs">
-                              Colores: {p.colors.map((c: any) => c.name).join(", ")}
+                              Colores:{" "}
+                              {p.colors.map((c: any) => c.name).join(", ")}
                             </p>
                           ) : null}
 
@@ -736,7 +691,6 @@ export default function AdminPage() {
                                 );
                                 return;
                               }
-                              // borrado SOLO local en esta fase
                               removeProduct(p.id);
                               setProducts((prev) =>
                                 prev.filter((x) => x.id !== p.id)
@@ -747,7 +701,6 @@ export default function AdminPage() {
                             Borrar
                           </button>
 
-                          {/* editar */}
                           {!locked && (
                             <button
                               onClick={() => loadProductToForm(p, false)}
@@ -757,7 +710,6 @@ export default function AdminPage() {
                             </button>
                           )}
 
-                          {/* clonar */}
                           {locked && (
                             <button
                               onClick={() => loadProductToForm(p, true)}
@@ -773,6 +725,9 @@ export default function AdminPage() {
                 </ul>
               )}
             </section>
+
+            {/* ------- ÚLTIMAS VENTAS ------- */}
+            <AdminSalesList />
           </>
         )}
       </div>
@@ -942,7 +897,7 @@ function ColorUploadField({
       </div>
       <div className="flex items-center gap-2">
         {currentImage ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={currentImage}
             alt={colorName}
@@ -968,5 +923,141 @@ function ColorUploadField({
         </label>
       </div>
     </div>
+  );
+}
+
+/* -----------------------------
+ * AdminSalesList
+ * ----------------------------- */
+function AdminSalesList() {
+  const [sales, setSales] = useState<
+    {
+      id: string;
+      createdAt: string;
+      items: { productId: string; qty: number; size?: string }[];
+      total?: number;
+      customer?: {
+        fullName?: string;
+        email?: string;
+        phone?: string;
+        country?: string;
+        adresse?: string;
+        city?: string;
+        zip?: string;
+      };
+    }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSales() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/sales");
+        if (!res.ok) throw new Error("No se pudo cargar ventas");
+        const data = await res.json();
+        if (!cancelled) {
+          setSales(data.sales || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError("No se pudo cargar el historial de ventas.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSales();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 mt-10">
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h2 className="text-xl font-display font-bold">Últimas ventas</h2>
+        {loading ? (
+          <span className="text-xs text-neutral-500">Cargando…</span>
+        ) : (
+          <span className="text-xs text-neutral-500">
+            {sales.length} registro{sales.length === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+
+      {error ? (
+        <p className="text-sm text-red-400">{error}</p>
+      ) : sales.length === 0 ? (
+        <p className="text-sm text-neutral-500">
+          Aún no hay ventas registradas.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {sales.map((sale) => {
+            const date = sale.createdAt
+              ? new Date(sale.createdAt).toLocaleString("es-ES")
+              : "—";
+            const totalItems = sale.items.reduce(
+              (acc, it) => acc + it.qty,
+              0
+            );
+
+            return (
+              <li
+                key={sale.id}
+                className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-neutral-800 pb-3 last:border-b-0"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Pedido #{sale.id.slice(0, 6)}
+                  </p>
+                  <p className="text-[11px] text-neutral-500">{date}</p>
+
+                  {sale.customer?.fullName ? (
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      {sale.customer.fullName}
+                      {sale.customer.country ? ` • ${sale.customer.country}` : ""}
+                    </p>
+                  ) : null}
+
+                  {sale.customer?.email ? (
+                    <p className="text-[11px] text-neutral-500">
+                      {sale.customer.email}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="text-right">
+                  <p className="text-yellow-400 font-bold text-sm">
+                    €{Number(sale.total ?? 0).toFixed(2)}
+                  </p>
+                  <p className="text-[11px] text-neutral-400">
+                    {totalItems} item{totalItems === 1 ? "" : "s"}
+                  </p>
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    {sale.items
+                      .map((it) =>
+                        it.size
+                          ? `${it.qty}x ${it.productId} (${it.size})`
+                          : `${it.qty}x ${it.productId}`
+                      )
+                      .join(" · ")}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
