@@ -16,7 +16,7 @@ export default function Navbar() {
   const isAdminPage = pathname?.startsWith("/admin");
 
   return (
-    <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-neutral-800">
+    <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-neutral-800 border-b-yellow-400">
       <nav className="max-w-6xl mx-auto flex justify-between items-center py-4 px-6">
         {/* Logo / Marca */}
         <Link href="/" className="flex items-center">
