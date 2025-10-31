@@ -1,28 +1,42 @@
-// lib/productsBase.ts
-import type { Product } from "@/lib/types";
+/**
+ * productsBase
+ * ------------------------------------------------------------
+ * Productos de ejemplo / precargados.
+ * Se mezclan con los del admin en useMergedProducts.
+ */
 
-const productsBase: Product[] = [
-  {
-    id: 'cap-classic',
-    name: 'Snapback Classic Logo',
-    price: 11.99,
-    image: '/images/cap-classic.jpg',
-    desc: 'Gorra plana con logo bordado SKATER STORE.',
-    details:
-      'Estructura 6 paneles, visera plana, cierre snapback. Bordado amarillo textura desgaste.',
-    sizes: ['ONE SIZE'],
-  },
+import type { Product } from "./types";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "./constants";
+
+export const productsBase: Product[] = [
   {
     id: "hoodie-black",
     name: "Hoodie Black",
-    price: 23.9,
-    desc: "Sudadera negra oversize.",
-    details: "Algodón, impresión frontal y trasera.",
-    image: "/images/sueter_azul.png",
+    price: 39.9,
+    desc: "Hoodie negro oversize con logo.",
+    details: "Algodón 450gsm, fit relajado.",
+    image: "/images/hoodie-black.jpg",
     sizes: ["S", "M", "L", "XL"],
     stock: 10,
-  }
-  // ...los que ya tenías
+  },
+  {
+    id: "tee-skater",
+    name: "Tee Skater",
+    price: 24.5,
+    desc: "Camiseta blanca con print skater.",
+    details: "100% algodón, corte recto.",
+    image: PRODUCT_PLACEHOLDER_IMAGE,
+    sizes: ["M", "L"],
+    stock: 15,
+  },
+  {
+    id: "cap-yellow",
+    name: "Gorra Yellow",
+    price: 18,
+    desc: "Gorra plana amarilla",
+    details: "Visera rígida, talla única.",
+    image: PRODUCT_PLACEHOLDER_IMAGE,
+    sizes: ["ONE SIZE"],
+    stock: 5,
+  },
 ];
-
-export default productsBase;

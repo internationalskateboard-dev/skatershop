@@ -1,23 +1,34 @@
 /**
- * store/salesStore.ts
+ * useSalesStore
  * ------------------------------------------------------------
- * Registra las ventas hechas desde el checkout (en memoria).
- * - Guarda un historial de ventas (simple).
- * - Permite consultar cuánto se ha vendido de un producto.
- * - Usa los tipos compartidos de lib/types.
+ * - Guarda las ventas confirmadas (checkout / PayPal)
+ * - Nos permite saber si un producto tiene ventas → LOCKED en admin
+ * - Ahora:
+ *    ✅ addSale(sale: SaleRecord) → guardas una venta completa
+ *    ✅ addSaleBatch(items, opts) → atajo cuando solo tienes items
+ *    ✅ getSoldQty(productId) → suma de cantidades vendidas de ese producto
  */
-
-"use client";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { SaleItem, SaleRecord } from "@/lib/types";
+import type {
+  SaleRecord,
+  SaleItem,
+  CustomerInfo,
+} from "@/lib/types";
 
 type SalesState = {
   sales: SaleRecord[];
-  addSaleBatch: (items: SaleItem[], extra?: Partial<SaleRecord>) => void;
+  addSale: (sale: SaleRecord) => void;
+  addSaleBatch: (
+    items: { productId: string; qty: number; size?: string }[],
+    opts?: {
+      customer?: Partial<CustomerInfo>;
+      total?: number;
+      createdAt?: string;
+    }
+  ) => void;
   getSoldQty: (productId: string) => number;
-  clearSales: () => void;
 };
 
 const useSalesStore = create<SalesState>()(
@@ -25,49 +36,55 @@ const useSalesStore = create<SalesState>()(
     (set, get) => ({
       sales: [],
 
+      // guardar una venta completa
+      addSale: (sale) =>
+        set((state) => ({
+          sales: [...state.sales, sale],
+        })),
+
       /**
        * addSaleBatch
-       * - Se llama desde checkout cuando PayPal aprueba.
-       * - items: [{ productId, qty, size? }, ...]
-       * - extra: info opcional del pedido (cliente, total, fecha)
+       * - atajo cuando solo tenemos los items (ej: viene de PayPal capture)
+       * - opcional: pasar customer y total
        */
-      addSaleBatch: (items, extra) =>
-        set((state) => {
-          const newRecord: SaleRecord = {
-            id: Date.now().toString(),
-            items,
-            createdAt: new Date().toISOString(),
-            ...extra,
-          };
+      addSaleBatch: (items, opts) => {
+        const mapped: SaleItem[] = items.map((it) => ({
+          productId: it.productId,
+          qty: it.qty,
+          size: it.size,
+        }));
 
-          return {
-            sales: [...state.sales, newRecord],
-          };
-        }),
+        const sale: SaleRecord = {
+          id: opts?.createdAt
+            ? "local-" + opts.createdAt
+            : "local-" + Date.now().toString(),
+          createdAt: opts?.createdAt ?? new Date().toISOString(),
+          items: mapped,
+          total: typeof opts?.total === "number" ? opts.total : 0,
+          customer: opts?.customer ?? {},
+        };
 
-      /**
-       * getSoldQty
-       * - Devuelve el total vendido de un producto en todas las ventas
-       * - Lo usa el admin para saber si puede borrar un producto o mostrar “LOCKED”
-       */
-      getSoldQty: (productId) => {
-        const { sales } = get();
-        return sales.reduce((acc, sale) => {
-          const match = sale.items.filter(
-            (it) => it.productId === productId
-          );
-          const qty = match.reduce((a, m) => a + m.qty, 0);
-          return acc + qty;
-        }, 0);
+        set((state) => ({
+          sales: [...state.sales, sale],
+        }));
       },
 
-      /**
-       * Limpiar ventas (por si quieres resetear en desarrollo)
-       */
-      clearSales: () => set({ sales: [] }),
+      // cuántas unidades de un producto se vendieron
+      getSoldQty: (productId) => {
+        const sales = get().sales;
+        let total = 0;
+        for (const sale of sales) {
+          for (const item of sale.items) {
+            if (item.productId === productId) {
+              total += item.qty;
+            }
+          }
+        }
+        return total;
+      },
     }),
     {
-      name: "skatershop-sales-v1",
+      name: "skater-sales",
     }
   )
 );
