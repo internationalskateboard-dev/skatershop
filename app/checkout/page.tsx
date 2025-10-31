@@ -52,10 +52,7 @@ export default function CheckoutPage() {
 
   // Totales seguros
   const itemsTotal = cart
-    .reduce(
-      (acc, it) => acc + Number(it.price ?? 0) * it.qty,
-      0
-    )
+    .reduce((acc, it) => acc + Number(it.price ?? 0) * it.qty, 0)
     .toFixed(2);
 
   const shippingCost = "0.00";
@@ -264,9 +261,7 @@ export default function CheckoutPage() {
                       style={{ layout: "vertical" }}
                       createOrder={(data, actions) => {
                         if (!actions?.order) {
-                          return Promise.reject(
-                            "PayPal order no disponible"
-                          );
+                          return Promise.reject("PayPal order no disponible");
                         }
 
                         // 🔎 Validación de stock local antes de crear la orden
@@ -342,13 +337,27 @@ export default function CheckoutPage() {
                             productId: it.id,
                             qty: it.qty,
                           }));
-
-                          addSaleBatch(batch);
+                        //
+                          addSaleBatch(batch, {
+                            total: Number(grandTotal),
+                            customer: {
+                              fullName: shipping.fullName,
+                              email: shipping.email,
+                              phone: shipping.phone,
+                              country: shipping.country,
+                            },
+                          });
+                          //
                           reduceStockBatch(batch);
 
                           clearCart();
                           setPaid(true);
-                          console.log("ORDER DETAILS:", details, shipping, cart);
+                          console.log(
+                            "ORDER DETAILS:",
+                            details,
+                            shipping,
+                            cart
+                          );
                         } catch (err) {
                           console.error("PayPal capture error:", err);
                         }
@@ -360,7 +369,8 @@ export default function CheckoutPage() {
                   </PayPalScriptProvider>
                 ) : (
                   <div className="border border-yellow-400/40 bg-neutral-900 rounded-xl p-4 text-sm text-yellow-400 text-center">
-                    ⚠️ Completa todos los campos de envío y contacto para habilitar el pago.
+                    ⚠️ Completa todos los campos de envío y contacto para
+                    habilitar el pago.
                   </div>
                 )}
               </div>

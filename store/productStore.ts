@@ -1,125 +1,129 @@
 /**
-productStore (Zustand)
-- Catálogo editable desde Admin.
-- Cada producto tiene stock.
-- reduceStockBatch descuenta stock tras una compra.
-- removeProduct bloqueado si ya hubo ventas.
-- ⚠️ Se recortan imágenes base64 muy grandes antes de guardarlas
-  para no reventar el localStorage (QuotaExceededError).
-*/
+ * store/productStore.ts
+ * ------------------------------------------------------------
+ * Store de productos creados desde el admin (en memoria + persistencia).
+ * - Guarda productos del admin.
+ * - Permite añadir/editar.
+ * - Permite reducir stock en batch (se llama desde checkout).
+ * - Usa tipos compartidos de lib/types.
+ */
 
 "use client";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-export type AdminProduct = {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  desc: string;
-  details: string;
-  sizes: string[];
-  stock: number;
-  // 👇 nuevo, opcional (definido ya en tu AdminPage)
-  colors?: {
-    name: string;
-    image: string;
-  }[];
-  // también opcional, pero tú lo tienes como string
-  sizeGuide?: string;
-};
+import { Product, SaleItem } from "@/lib/types";
 
 type ProductState = {
-  products: AdminProduct[];
-  addProduct: (p: AdminProduct) => void;
-  removeProduct: (id: string) => void;
-  reduceStockBatch: (items: { productId: string; qty: number }[]) => void;
+  products: Product[];
+  addProduct: (p: Product) => void;
+  updateProduct: (id: string, data: Partial<Product>) => void;
+  deleteProduct: (id: string) => void;
+  reduceStockBatch: (batch: SaleItem[]) => void;
+  markLocked: (id: string) => void;
+  findById: (id: string) => Product | undefined;
 };
-
-/**
- * Recorta las imágenes muy largas (base64) para que el JSON
- * que va a localStorage no pase el límite (~5MB).
- *
- * Esto es un parche mientras no tengamos backend / storage real.
- */
-function shrinkProductForStorage(p: AdminProduct): AdminProduct {
-  // límite aproximado de chars por imagen
-  const MAX_LEN = 9120_000; // ajusta a 80_000 si sigue dando quota
-
-  const safeImage =
-    p.image && p.image.length > MAX_LEN
-      ? p.image.slice(0, MAX_LEN) + "...truncated"
-      : p.image;
-
-  const safeColors = Array.isArray(p.colors)
-    ? p.colors.map((c) => {
-        if (!c.image) return c;
-        return c.image.length > MAX_LEN
-          ? { ...c, image: c.image.slice(0, MAX_LEN) + "...truncated" }
-          : c;
-      })
-    : p.colors;
-
-  return {
-    ...p,
-    image: safeImage,
-    colors: safeColors,
-  };
-}
 
 const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({
       products: [],
 
-      addProduct: (p) => {
-        // ✅ antes de guardar, lo “achicamos”
-        const safe = shrinkProductForStorage(p);
-
-        const exists = get().products.find((x) => x.id === p.id);
-        if (exists) {
-          set({
-            products: get().products.map((x) =>
-              x.id === p.id ? safe : x
-            ),
-          });
-        } else {
-          set({
-            products: [...get().products, safe],
-          });
-        }
-      },
-
-      removeProduct: (id) => {
-        set({
-          products: get().products.filter((x) => x.id !== id),
-        });
-      },
-
-      // 🔥 Descontar stock tras una compra
-      reduceStockBatch: (items) => {
-        const newProducts = [...get().products];
-
-        items.forEach(({ productId, qty }) => {
-          const idx = newProducts.findIndex((p) => p.id === productId);
-          if (idx !== -1) {
-            const currentStock = newProducts[idx].stock ?? 0;
-            const newStock = currentStock - qty;
-            newProducts[idx] = {
-              ...newProducts[idx],
-              stock: newStock < 0 ? 0 : newStock,
+      /**
+       * Añadir producto desde admin.
+       * Si ya existe un producto con el mismo id, lo sobreescribimos.
+       */
+      addProduct: (p) =>
+        set((state) => {
+          const exists = state.products.find((x) => x.id === p.id);
+          if (exists) {
+            return {
+              products: state.products.map((x) =>
+                x.id === p.id ? { ...x, ...p } : x
+              ),
             };
           }
-        });
+          return {
+            products: [...state.products, p],
+          };
+        }),
 
-        set({ products: newProducts });
+      /**
+       * Actualizar un producto por id.
+       */
+      updateProduct: (id, data) =>
+        set((state) => ({
+          products: state.products.map((p) =>
+            p.id === id ? { ...p, ...data } : p
+          ),
+        })),
+
+      /**
+       * Eliminar producto
+       * (se suele bloquear si tiene ventas → ver markLocked)
+       */
+      deleteProduct: (id) =>
+        set((state) => ({
+          products: state.products.filter((p) => p.id !== id),
+        })),
+
+      /**
+       * Reducir stock en batch
+       * - batch viene del checkout: [{ productId, qty, size? }, ...]
+       * - si un producto no tiene stock definido → lo dejamos igual
+       */
+      reduceStockBatch: (batch) =>
+        set((state) => {
+          if (!Array.isArray(batch) || batch.length === 0) {
+            return { products: state.products };
+          }
+
+          const mapById = new Map<string, number>();
+          batch.forEach((item) => {
+            const prev = mapById.get(item.productId) ?? 0;
+            mapById.set(item.productId, prev + item.qty);
+          });
+
+          return {
+            products: state.products.map((p) => {
+              // si el producto no está en el batch, lo dejamos igual
+              if (!mapById.has(p.id)) return p;
+
+              const toReduce = mapById.get(p.id) ?? 0;
+
+              // si no tenía stock → lo dejamos sin tocar
+              if (typeof p.stock !== "number") {
+                return p;
+              }
+
+              const newStock = Math.max(0, p.stock - toReduce);
+              return {
+                ...p,
+                stock: newStock,
+              };
+            }),
+          };
+        }),
+
+      /**
+       * Marcar un producto como bloqueado (tiene ventas)
+       */
+      markLocked: (id) =>
+        set((state) => ({
+          products: state.products.map((p) =>
+            p.id === id ? { ...p, locked: true } : p
+          ),
+        })),
+
+      /**
+       * Buscar por id
+       */
+      findById: (id) => {
+        return get().products.find((p) => p.id === id);
       },
     }),
     {
-      name: "skaterstore-products",
-      getStorage: () => localStorage,
+      name: "skatershop-products-v1",
     }
   )
 );
