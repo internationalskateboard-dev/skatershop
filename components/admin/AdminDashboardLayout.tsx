@@ -2,86 +2,82 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminDataSourceProvider } from "./AdminDataSourceContext";
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
-import { AdminDataSourceProvider } from "./AdminDataSourceContext";
 
-const ADMIN_PASS = "skateradmin";
-
-export default function AdminDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [authed, setAuthed] = useState(false);
-  const [pass, setPass] = useState("");
+export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const ok = sessionStorage.getItem("skater-admin-ok");
-    if (ok === "yes") setAuthed(true);
+    // 1) ¿hay sesión guardada?
+    const ok = typeof window !== "undefined" ? sessionStorage.getItem("skatershop-admin-auth") : null;
+    if (ok === "1") {
+      setIsAuthed(true);
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pass === ADMIN_PASS) {
-      setAuthed(true);
-      sessionStorage.setItem("skater-admin-ok", "yes");
-    } else {
-      alert("Clave incorrecta");
-    }
-  };
+  if (loading) {
+    return <div className="p-6">Cargando panel…</div>;
+  }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("skater-admin-ok");
-    setAuthed(false);
-  };
-
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4">
-        <form
-          onSubmit={handleLogin}
-          className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 w-full max-w-sm space-y-4"
-        >
-          <h1 className="text-xl font-bold text-white">Admin / SkaterShop</h1>
-          <label className="block text-sm text-neutral-300">
-            Clave de administrador
-            <input
-              type="password"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-white outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-sm"
-            />
-          </label>
-          <button
-            type="submit"
-            className="w-full bg-yellow-400 text-black font-bold py-2 rounded-lg hover:bg-yellow-300 active:scale-95 transition text-sm"
-          >
-            Entrar
-          </button>
-          <p className="text-[11px] text-neutral-500">
-            (Se guarda en sessionStorage como antes)
-          </p>
-        </form>
-      </div>
-    );
+  if (!isAuthed) {
+    return <AdminLogin onSuccess={() => setIsAuthed(true)} />;
   }
 
   return (
     <AdminDataSourceProvider>
-      <div className="min-h-screen bg-neutral-950 text-white flex">
-        {/* Sidebar */}
-        <AdminSidebar onLogout={handleLogout} />
-
-        {/* Contenido principal */}
-        <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex min-h-screen bg-muted/30">
+        <AdminSidebar />
+        <div className="flex-1 flex flex-col">
           <AdminHeader />
-          <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-            {children}
-          </main>
+          <main className="p-6">{children}</main>
         </div>
       </div>
     </AdminDataSourceProvider>
+  );
+}
+
+function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
+  const [input, setInput] = useState("");
+
+  function handleLogin() {
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem("skatershop-admin-key") : null;
+    const expected = stored || "skateradmin";
+    if (input === expected) {
+      sessionStorage.setItem("skatershop-admin-auth", "1");
+      onSuccess();
+    } else {
+      alert("Clave incorrecta");
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <div className="w-full max-w-sm rounded-xl border bg-card p-6 space-y-4">
+        <h1 className="text-xl font-bold">Acceso administrador</h1>
+        <input
+          type="password"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ingresa la clave"
+          className="w-full rounded-md border px-3 py-2 text-sm bg-background"
+        />
+        <button
+          onClick={handleLogin}
+          className="w-full py-2 rounded-md bg-primary text-primary-foreground text-sm"
+        >
+          Entrar
+        </button>
+        <p className="text-xs text-muted-foreground">
+          La clave por defecto es <code>skateradmin</code>, pero puedes cambiarla en <b>Admin → Settings</b>.
+        </p>
+      </div>
+    </div>
   );
 }

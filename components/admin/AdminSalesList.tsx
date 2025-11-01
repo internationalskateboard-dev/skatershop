@@ -1,143 +1,201 @@
 // components/admin/AdminSalesList.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import useSalesStore from "@/store/salesStore";
-import type { SaleRecord } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
 import { useAdminDataSource } from "./AdminDataSourceContext";
+import { downloadCsvFromSales } from "@/lib/exportCsv";
+
+interface SaleRecord {
+  id: string;
+  createdAt: string;
+  items: { productId: string; qty: number; size?: string }[];
+  total: number;
+  customer?: { fullName?: string; email?: string };
+}
 
 export default function AdminSalesList() {
-  const localSales = useSalesStore((s) => s.sales);
-  const [sales, setSales] = useState<SaleRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-
   const { setSource, setLastError } = useAdminDataSource();
+  const [sales, setSales] = useState<SaleRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // cargar ventas
+  // filtros
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [productFilter, setProductFilter] = useState("");
+
   useEffect(() => {
-    let cancelled = false;
-
     async function load() {
       setLoading(true);
-      setLastError(null);
       try {
-        const res = await fetch("/api/sales", { method: "GET" });
-        if (!res.ok) throw new Error("No se pudo obtener ventas");
+        const res = await fetch("/api/sales");
+        if (!res.ok) throw new Error("No se pudo cargar /api/sales");
         const data = await res.json();
-        const fromApi = Array.isArray(data.sales) ? data.sales : [];
-        if (!cancelled) {
-          setSales(fromApi);
-          setSource("api");
-        }
-      } catch (err: unknown) {
-        console.warn("[AdminSalesList] usando ventas locales:", err);
-        if (!cancelled) {
-          setSales(localSales);
-          setSource("local");
-          setLastError("No se pudo leer ventas desde la API.");
-        }
+        setSales(data || []);
+        setSource("api");
+        setLastError(null);
+      } catch (err: any) {
+        console.warn("[AdminSalesList] API falló, usando memoria/local", err);
+        setSource("local");
+        setLastError(err?.message || "Error al cargar ventas");
+        // aquí podrías hacer fetch a /api/sales?local=1 o leer de Zustand si ya lo tienes
+        setSales([]);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
-
     load();
+  }, [setLastError, setSource]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [localSales, setSource, setLastError]);
-
-  async function handleDeleteSale(sale: SaleRecord) {
-    const ok = window.confirm(
-      `¿Borrar la venta ${sale.id}? Esto es solo para limpiar pruebas.`
-    );
-    if (!ok) return;
-
-    try {
-      const res = await fetch(`/api/sales/${sale.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error("DELETE /api/sales/:id falló");
+  const filteredSales = useMemo(() => {
+    return sales.filter((s) => {
+      // fecha
+      if (dateFrom) {
+        const dFrom = new Date(dateFrom);
+        const dCreated = new Date(s.createdAt);
+        if (dCreated < dFrom) return false;
       }
-      setSales((prev) => prev.filter((s) => s.id !== sale.id));
-    } catch (err) {
-      console.warn("[AdminSalesList] no se pudo borrar en API, borrando local", err);
-      useSalesStore.setState((state) => ({
-        sales: state.sales.filter((s) => s.id !== sale.id),
-      }));
-      setSales((prev) => prev.filter((s) => s.id !== sale.id));
-      setSource("local");
-      setLastError("No se pudo borrar en API, se borró localmente.");
+      if (dateTo) {
+        const dTo = new Date(dateTo);
+        const dCreated = new Date(s.createdAt);
+        // incluir el día completo
+        dTo.setHours(23, 59, 59, 999);
+        if (dCreated > dTo) return false;
+      }
+      // producto
+      if (productFilter.trim().length > 0) {
+        const pf = productFilter.trim().toLowerCase();
+        const hasProduct = (s.items || []).some((it) =>
+          (it.productId || "").toLowerCase().includes(pf)
+        );
+        if (!hasProduct) return false;
+      }
+      return true;
+    });
+  }, [sales, dateFrom, dateTo, productFilter]);
+
+  function handleExportCsv() {
+    downloadCsvFromSales(filteredSales, "ventas-filtradas.csv");
+  }
+
+  async function handleDelete(id: string) {
+    const ok = confirm("¿Borrar esta venta de prueba?");
+    if (!ok) return;
+    const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setSales((prev) => prev.filter((s) => s.id !== id));
+    } else {
+      alert("No se pudo borrar");
     }
   }
 
   return (
-    <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl font-display font-bold">Ventas</h2>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Ventas</h1>
+          <p className="text-sm text-muted-foreground">
+            Puedes filtrar por fecha o producto y exportar solo las coincidentes.
+          </p>
+        </div>
+        <button
+          onClick={handleExportCsv}
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
+        >
+          Exportar CSV (filtrado)
+        </button>
       </div>
 
-      {sales.length === 0 ? (
-        <p className="text-neutral-500 text-sm">
-          {loading ? "Cargando ventas..." : "No hay ventas registradas."}
-        </p>
-      ) : (
-        <div className="overflow-x-auto -mx-3 md:mx-0">
-          <table className="min-w-full text-sm text-left text-neutral-200">
-            <thead>
-              <tr className="border-b border-neutral-800 text-xs uppercase text-neutral-500">
-                <th className="py-2 px-3">ID</th>
-                <th className="py-2 px-3">Fecha</th>
-                <th className="py-2 px-3">Cliente</th>
-                <th className="py-2 px-3">Items</th>
-                <th className="py-2 px-3 text-right">Total</th>
-                <th className="py-2 px-3 text-right">Acciones</th>
+      {/* filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-card border rounded-xl p-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Desde</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-md border px-3 py-2 text-sm bg-background"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Hasta</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-md border px-3 py-2 text-sm bg-background"
+          />
+        </div>
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="text-xs text-muted-foreground">Producto (ID contiene)</label>
+          <input
+            value={productFilter}
+            onChange={(e) => setProductFilter(e.target.value)}
+            placeholder="p.ej. deck-01"
+            className="rounded-md border px-3 py-2 text-sm bg-background"
+          />
+        </div>
+      </div>
+
+      {/* listado */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left px-3 py-2">ID</th>
+              <th className="text-left px-3 py-2">Fecha</th>
+              <th className="text-left px-3 py-2">Items</th>
+              <th className="text-left px-3 py-2">Total</th>
+              <th className="text-right px-3 py-2">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                  Cargando ventas…
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {sales.map((s) => (
-                <tr key={s.id} className="border-b border-neutral-800/50">
-                  <td className="py-2 px-3 text-xs text-neutral-400">
-                    {s.id}
+            ) : filteredSales.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                  No hay ventas que coincidan con el filtro.
+                </td>
+              </tr>
+            ) : (
+              filteredSales.map((s) => (
+                <tr key={s.id} className="border-t">
+                  <td className="px-3 py-2 font-mono text-xs">{s.id}</td>
+                  <td className="px-3 py-2">
+                    {new Date(s.createdAt).toLocaleString("es-ES", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
                   </td>
-                  <td className="py-2 px-3 text-xs">
-                    {new Date(s.createdAt).toLocaleString()}
+                  <td className="px-3 py-2">
+                    <ul className="space-y-0.5">
+                      {s.items?.map((it, idx) => (
+                        <li key={idx}>
+                          <span className="font-mono">{it.productId}</span> ×{it.qty}{" "}
+                          {it.size ? `(${it.size})` : ""}
+                        </li>
+                      ))}
+                    </ul>
                   </td>
-                  <td className="py-2 px-3 text-xs">
-                    {s.customer?.fullName || "—"}
-                    {s.customer?.email ? ` · ${s.customer.email}` : ""}
-                  </td>
-                  <td className="py-2 px-3 text-xs">
-                    {s.items
-                      .map(
-                        (it) =>
-                          `${it.productId} x${it.qty}${
-                            it.size ? ` (${it.size})` : ""
-                          }`
-                      )
-                      .join(", ")}
-                  </td>
-                  <td className="py-2 px-3 text-right text-yellow-400 font-semibold">
-                    €{(s.total ?? 0).toFixed(2)}
-                  </td>
-                  <td className="py-2 px-3 text-right">
+                  <td className="px-3 py-2 font-semibold">€ {s.total.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">
                     <button
-                      onClick={() => handleDeleteSale(s)}
-                      className="text-[11px] bg-red-500/20 text-red-300 border border-red-500/40 rounded-md px-3 py-1 hover:bg-red-500/30 transition"
+                      onClick={() => handleDelete(s.id)}
+                      className="text-xs text-red-500 hover:underline"
                     >
                       Borrar
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
