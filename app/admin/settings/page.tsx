@@ -1,4 +1,3 @@
-// app/admin/settings/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -36,19 +35,13 @@ export default function AdminSettingsPage() {
       if (!res.ok) throw new Error("No se pudo leer /api/products");
       const data = (await res.json()) as { products: Product[] };
       const list = data.products || [];
-      list.forEach((p) => {
-        // si ya existe en el store, lo actualizamos
-        updateProduct(p.id, p);
-      });
-      // y los que no, los añadimos
-      list.forEach((p) => {
-        addProduct(p);
-      });
+      list.forEach((p) => updateProduct(p.id, p));
+      list.forEach((p) => addProduct(p));
       setSeedMsg(`Se cargaron ${list.length} productos desde la API ✅`);
-    } catch (err: any) {
+    } catch (err) {
       setSeedMsg("No se pudieron cargar productos desde la API ❌");
     } finally {
-      setTimeout(() => setSeedMsg(null), 3500);
+      setTimeout(() => setSeedMsg(null), 3000);
     }
   }
 

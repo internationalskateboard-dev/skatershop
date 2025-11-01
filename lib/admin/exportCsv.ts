@@ -1,18 +1,18 @@
 // lib/admin/exportCsv.ts
-import type { SaleRecord } from "./types";
+import type { SaleRecord, SaleItem } from "@/lib/admin/types";
 
 export function downloadSalesCsv(sales: SaleRecord[], filename = "ventas.csv") {
   const headers = ["id", "createdAt", "total", "items", "customerName", "customerEmail"];
 
   const rows = sales.map((s) => {
-    const items = (s.items || [])
+    const items = (s.items || ([] as SaleItem[]))
       .map((it) => `${it.productId || ""} x${it.qty}${it.size ? ` (${it.size})` : ""}`)
       .join(" | ");
 
     return [
       s.id,
       s.createdAt,
-      s.total,
+      s.total ?? "",
       items,
       s.customer?.fullName ?? "",
       s.customer?.email ?? "",
@@ -25,11 +25,7 @@ export function downloadSalesCsv(sales: SaleRecord[], filename = "ventas.csv") {
     rows
       .map((r) =>
         r
-          .map((cell) => {
-            const value = String(cell ?? "");
-            // escapamos comillas
-            return `"${value.replace(/"/g, '""')}"`;
-          })
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
           .join(",")
       )
       .join("\n");

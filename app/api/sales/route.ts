@@ -1,15 +1,14 @@
 // app/api/sales/route.ts
 import { NextResponse } from "next/server";
-import type { SaleRecord } from "@/lib/admin/types";
-import {
-  salesMemory,
-  addSaleToMemory,
-} from "@/lib/server/salesMemory";
+import type { SaleRecord, SalesApiResponse } from "@/lib/types";
+import { salesMemory, addSaleToMemory } from "@/lib/server/salesMemory";
 
 // GET /api/sales
 export async function GET() {
-  // aquí podrías en el futuro mezclar sales reales + memoria
-  return NextResponse.json(salesMemory satisfies SaleRecord[]);
+  const payload: SalesApiResponse = {
+    sales: salesMemory,
+  };
+  return NextResponse.json(payload);
 }
 
 // POST /api/sales

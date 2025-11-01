@@ -1,40 +1,9 @@
 // lib/admin/types.ts
+// Reexporta los tipos base del proyecto (lib/types.ts)
+// para que el panel de admin use los mismos sin duplicar.
 
-// ----- SALES -----
-export interface SaleItem {
-  productId: string;
-  qty: number;
-  size?: string;
-}
+export * from "@/lib/types";
 
-export interface SaleCustomer {
-  fullName?: string;
-  email?: string;
-}
-
-export interface SaleRecord {
-  id: string;
-  createdAt: string; // ISO
-  items: SaleItem[];
-  total: number;
-  customer?: SaleCustomer;
-}
-
-// ----- PRODUCTS -----
-export interface ProductColor {
-  name: string;
-  image?: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  desc?: string;
-  details?: string;
-  image?: string;
-  sizes?: string[];
-  colors?: ProductColor[];
-  stock?: number;
-  sizeGuide?: string;
-}
+// Tipos auxiliares solo para el admin.
+export type AdminDataSource = "api" | "local";
+export type AdminDataMode = "auto" | "force";

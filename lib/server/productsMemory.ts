@@ -1,5 +1,5 @@
 // lib/server/productsMemory.ts
-import type { Product } from "@/lib/admin/types";
+import type { Product } from "@/lib/types";
 
 export const productsMemory: Product[] = [];
 

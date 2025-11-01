@@ -1,13 +1,6 @@
-// components/admin/AdminDataSourceContext.tsx
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
   LS_DATASOURCE,
   LS_DATASOURCE_MODE,
@@ -27,22 +20,17 @@ interface AdminDataSourceContextValue {
   reportApiError: (msg: string) => void;
 }
 
-const AdminDataSourceContext = createContext<AdminDataSourceContextValue | null>(
-  null
-);
+const AdminDataSourceContext = createContext<AdminDataSourceContextValue | null>(null);
 
 export function AdminDataSourceProvider({ children }: { children: React.ReactNode }) {
   const [source, setSourceState] = useState<DataSource>("api");
   const [mode, setModeState] = useState<DataSourceMode>("auto");
   const [lastError, setLastErrorState] = useState<string | null>(null);
 
-  // load from LS once
   useEffect(() => {
     if (typeof window === "undefined") return;
     const savedSource = window.localStorage.getItem(LS_DATASOURCE) as DataSource | null;
-    const savedMode = window.localStorage.getItem(LS_DATASOURCE_MODE) as
-      | DataSourceMode
-      | null;
+    const savedMode = window.localStorage.getItem(LS_DATASOURCE_MODE) as DataSourceMode | null;
     if (savedSource === "api" || savedSource === "local") {
       setSourceState(savedSource);
     }
@@ -51,13 +39,11 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
     }
   }, []);
 
-  // persist source
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(LS_DATASOURCE, source);
   }, [source]);
 
-  // persist mode
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(LS_DATASOURCE_MODE, mode);
@@ -76,22 +62,16 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
   }, []);
 
   const reportApiSuccess = useCallback(() => {
-    // si es automático, puedes cambiar la fuente
+    // solo cambiaremos a API si estamos en modo auto
     setLastError(null);
-    setSourceState((prev) => {
-      // si ya era api, no pasa nada
-      return prev === "api" ? prev : "api";
-    });
+    setSourceState((prev) => (prev === "api" ? prev : "api"));
   }, [setLastError]);
 
   const reportApiError = useCallback(
     (msg: string) => {
       setLastError(msg);
-      // solo caer a local si es auto
       setSourceState((prev) => {
-        if (mode === "auto") {
-          return "local";
-        }
+        if (mode === "auto") return "local";
         return prev;
       });
     },
@@ -119,7 +99,7 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
 export function useAdminDataSource() {
   const ctx = useContext(AdminDataSourceContext);
   if (!ctx) {
-    throw new Error("useAdminDataSource debe usarse dentro de <AdminDataSourceProvider>");
+    throw new Error("useAdminDataSource must be used within AdminDataSourceProvider");
   }
   return ctx;
 }

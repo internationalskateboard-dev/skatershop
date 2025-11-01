@@ -1,5 +1,5 @@
 // lib/server/salesMemory.ts
-import type { SaleRecord } from "@/lib/admin/types";
+import type { SaleRecord } from "@/lib/types";
 
 export const salesMemory: SaleRecord[] = [];
 

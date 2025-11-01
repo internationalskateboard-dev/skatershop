@@ -1,20 +1,12 @@
 // lib/admin/exportProductsCsv.ts
-import type { Product } from "./types";
+import type { Product } from "@/lib/admin/types";
 
 export function downloadProductsCsv(products: Product[], filename = "inventario.csv") {
-  const headers = [
-    "id",
-    "name",
-    "price",
-    "stock",
-    "sizes",
-    "colors",
-    "hasImage",
-  ];
+  const headers = ["id", "name", "price", "stock", "sizes", "colors", "hasImage"];
 
   const rows = products.map((p) => {
     const sizes = Array.isArray(p.sizes) ? p.sizes.join("|") : "";
-    const colors = Array.isArray(p.colors) ? p.colors.map((c) => c.name).join("|") : "";
+    const colors = Array.isArray(p.colors) ? p.colors.map((c: any) => c.name).join("|") : "";
     const hasImage = p.image ? "yes" : "no";
     return [
       p.id,
@@ -33,10 +25,7 @@ export function downloadProductsCsv(products: Product[], filename = "inventario.
     rows
       .map((r) =>
         r
-          .map((cell) => {
-            const v = String(cell ?? "");
-            return `"${v.replace(/"/g, '""')}"`;
-          })
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
           .join(",")
       )
       .join("\n");
