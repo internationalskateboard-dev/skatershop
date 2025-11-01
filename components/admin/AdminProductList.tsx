@@ -8,6 +8,7 @@ import useSalesStore from "@/store/salesStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import type { Product } from "@/lib/admin/types";
 import { useAdminDataSource } from "./AdminDataSourceContext";
+import { downloadProductsCsv } from "@/lib/admin/exportProductsCsv";
 
 type AdminProductListProps = {
   onEdit?: (p: Product) => void;
@@ -88,11 +89,22 @@ export default function AdminProductList({ onEdit, onClone }: AdminProductListPr
     setProducts((prev) => prev.filter((x) => x.id !== p.id));
   }
 
+  function handleExportCsv() {
+    downloadProductsCsv(products, "inventario.csv");
+  }
+
   return (
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-display font-bold">Productos en memoria / API</h2>
-        {/* El header ya muestra la fuente, aquí no hace falta */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
+          >
+            Exportar inventario CSV
+          </button>
+        </div>
       </div>
 
       {products.length === 0 ? (
