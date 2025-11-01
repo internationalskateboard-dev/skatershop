@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdminDataSource } from "@/components/admin/AdminDataSourceContext";
 import { downloadSalesCsv } from "@/lib/admin/exportCsv";
-import type { SaleRecord } from "@/lib/admin/types";
+import type { SaleRecord } from "@/lib/types";
 
 export default function AdminSalesList() {
   const { reportApiSuccess, reportApiError } = useAdminDataSource();
@@ -21,13 +21,14 @@ export default function AdminSalesList() {
     try {
       const res = await fetch("/api/sales");
       if (!res.ok) throw new Error("No se pudo cargar /api/sales");
-      const data = (await res.json()) as SaleRecord[];
-      setSales(data || []);
+      // tu API devuelve { sales: SaleRecord[] }
+      const data = (await res.json()) as { sales: SaleRecord[] };
+      setSales(data.sales || []);
       reportApiSuccess();
     } catch (err: any) {
-      console.warn("[AdminSalesList] API falló, usando memoria/local", err);
+      console.warn("[AdminSalesList] API falló, usando vacío/local", err);
       reportApiError(err?.message || "Error al cargar ventas");
-      // fallback local si tienes un store, aquí dejamos array vacío
+      // si tuvieras un store local de ventas, lo pondrías aquí
       setSales([]);
     } finally {
       setLoading(false);
@@ -40,20 +41,20 @@ export default function AdminSalesList() {
 
   const filteredSales = useMemo(() => {
     return sales.filter((s) => {
-      // fecha desde
+      // filtro por fecha desde
       if (dateFrom) {
         const dFrom = new Date(dateFrom);
         const dCreated = new Date(s.createdAt);
         if (dCreated < dFrom) return false;
       }
-      // fecha hasta (incluimos el día completo)
+      // filtro por fecha hasta (incluimos el día completo)
       if (dateTo) {
         const dTo = new Date(dateTo);
         const dCreated = new Date(s.createdAt);
         dTo.setHours(23, 59, 59, 999);
         if (dCreated > dTo) return false;
       }
-      // filtro por producto (productId contiene)
+      // filtro por producto
       if (productFilter.trim()) {
         const pf = productFilter.trim().toLowerCase();
         const hasProduct = (s.items || []).some((it) =>
@@ -66,6 +67,7 @@ export default function AdminSalesList() {
   }, [sales, dateFrom, dateTo, productFilter]);
 
   function handleExportCsv() {
+    // exporta SOLO lo que está filtrado
     downloadSalesCsv(filteredSales, "ventas-filtradas.csv");
   }
 

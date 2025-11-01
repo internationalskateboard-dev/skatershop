@@ -1,68 +1,65 @@
-// components/admin/AdminDashboardLayout.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { AdminDataSourceProvider } from "./AdminDataSourceContext";
-import AdminSidebar from "./AdminSidebar";
-import AdminHeader from "./AdminHeader";
-import {
-  SS_ADMIN_AUTH,
-  LS_ADMIN_KEY,
-  DEFAULT_ADMIN_KEY,
-} from "@/lib/admin/constants";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { AdminDataSourceProvider, useAdminDataSource } from "@/components/admin/AdminDataSourceContext";
 
-export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [loading, setLoading] = useState(true);
+function Sidebar() {
+  const pathname = usePathname();
+  const { source, mode } = useAdminDataSource();
 
-  useEffect(() => {
-    const ok =
-      typeof window !== "undefined" ? sessionStorage.getItem(SS_ADMIN_AUTH) : null;
-    if (ok === "1") {
-      setIsAuthed(true);
-    }
-    setLoading(false);
-  }, []);
-
-  if (loading) {
-    return <div className="p-6">Cargando panel…</div>;
-  }
-
-  if (!isAuthed) {
-    return <AdminLogin onSuccess={() => setIsAuthed(true)} />;
-  }
+  const links = [
+    { href: "/admin/products", label: "Productos" },
+    { href: "/admin/sales", label: "Ventas" },
+    { href: "/admin/settings", label: "Settings" },
+  ];
 
   return (
-    <AdminDataSourceProvider>
-      <div className="flex min-h-screen bg-muted/30">
-        <AdminSidebar />
-        <div className="flex-1 flex flex-col">
-          <AdminHeader />
-          <main className="p-6">{children}</main>
-        </div>
+    <aside className="w-56 bg-neutral-950 border-r border-neutral-900 flex flex-col">
+      <div className="px-4 py-4 border-b border-neutral-900">
+        <p className="text-sm font-bold text-white">SkaterShop Admin</p>
+        <p className="text-[10px] text-neutral-500 mt-1">
+          fuente: <span className="font-mono">{source}</span> • modo:{" "}
+          <span className="font-mono">{mode}</span>
+        </p>
       </div>
-    </AdminDataSourceProvider>
+      <nav className="flex-1 py-4">
+        {links.map((l) => {
+          const active = pathname === l.href;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`block px-4 py-2 text-sm rounded-r-full mr-2 ${
+                active
+                  ? "bg-neutral-800 text-white"
+                  : "text-neutral-300 hover:bg-neutral-900"
+              }`}
+            >
+              {l.label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="px-4 py-3 text-[10px] text-neutral-600 border-t border-neutral-900">
+        v0.1 admin dashboard
+      </div>
+    </aside>
   );
 }
 
-function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
-  const [input, setInput] = useState("");
-
-  function handleLogin() {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(LS_ADMIN_KEY) : null;
-    const expected = stored || DEFAULT_ADMIN_KEY;
-    if (input === expected) {
-      sessionStorage.setItem(SS_ADMIN_AUTH, "1");
-      onSuccess();
-    } else {
-      alert("Clave incorrecta");
-    }
-  }
-
+export default function AdminDashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30">
-      {/* ... igual que antes ... */}
-    </div>
+    <AdminDataSourceProvider>
+      <div className="min-h-screen bg-neutral-950 text-white flex">
+        <Sidebar />
+        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+      </div>
+    </AdminDataSourceProvider>
   );
+  
 }
