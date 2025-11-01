@@ -1,7 +1,11 @@
 // components/admin/AdminHeader.tsx
 "use client";
 
+import { useAdminDataSource } from "./AdminDataSourceContext";
+
 export default function AdminHeader() {
+  const { source, lastError } = useAdminDataSource();
+
   return (
     <header className="h-16 border-b border-neutral-900 flex items-center justify-between px-4">
       <div>
@@ -14,10 +18,19 @@ export default function AdminHeader() {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* badge de fuente futura */}
-        <span className="text-[11px] bg-green-500/10 text-green-200 border border-green-500/30 rounded-full px-3 py-1">
-          Fuente: auto
+        <span
+          className={`text-[11px] rounded-full px-3 py-1 border ${
+            source === "api"
+              ? "bg-green-500/10 text-green-200 border-green-500/30"
+              : "bg-yellow-500/10 text-yellow-200 border-yellow-500/30"
+          }`}
+        >
+          Fuente: {source === "api" ? "API" : "Local (Zustand)"}
         </span>
+
+        {lastError ? (
+          <span className="text-[10px] text-red-400">{lastError}</span>
+        ) : null}
       </div>
     </header>
   );

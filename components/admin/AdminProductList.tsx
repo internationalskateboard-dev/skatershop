@@ -1,3 +1,4 @@
+// components/admin/AdminProductList.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,6 +7,7 @@ import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import type { Product } from "@/lib/types";
+import { useAdminDataSource } from "./AdminDataSourceContext";
 
 type AdminProductListProps = {
   onEdit?: (p: Product) => void;
@@ -23,9 +25,9 @@ export default function AdminProductList({
   const getSoldQty = useSalesStore((s) => s.getSoldQty);
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [source, setSource] = useState<"api" | "local">("local");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { setSource, setLastError } = useAdminDataSource();
 
   // cargar productos al montar
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function AdminProductList({
 
     async function load() {
       setLoading(true);
-      setError(null);
+      setLastError(null);
       try {
         const res = await fetch("/api/products", { method: "GET" });
         if (!res.ok) throw new Error("No se pudo leer /api/products");
@@ -43,12 +45,12 @@ export default function AdminProductList({
           setProducts(apiProducts);
           setSource("api");
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn("[AdminProductList] usando productos locales:", err);
         if (!cancelled) {
           setProducts(localProducts);
           setSource("local");
-          setError("No se pudo leer desde la API, mostrando datos locales.");
+          setLastError("No se pudo leer productos desde la API.");
         }
       } finally {
         if (!cancelled) {
@@ -62,7 +64,7 @@ export default function AdminProductList({
     return () => {
       cancelled = true;
     };
-  }, [localProducts]);
+  }, [localProducts, setSource, setLastError]);
 
   async function handleDelete(p: Product) {
     const soldQty = getSoldQty(p.id);
@@ -79,16 +81,14 @@ export default function AdminProductList({
       if (!res.ok) {
         throw new Error("DELETE API falló");
       }
-      // si fue bien, quitamos del estado
       setProducts((prev) => prev.filter((x) => x.id !== p.id));
-      // y también del local para que tienda no lo vea
       removeLocalProduct(p.id);
-      return;
     } catch (err) {
       console.warn("[AdminProductList] DELETE API falló, borrando local:", err);
-      // fallback: solo local
       removeLocalProduct(p.id);
       setProducts((prev) => prev.filter((x) => x.id !== p.id));
+      setSource("local");
+      setLastError("No se pudo borrar en API, se borró localmente.");
     }
   }
 
@@ -98,21 +98,7 @@ export default function AdminProductList({
         <h2 className="text-xl font-display font-bold">
           Productos en memoria / API
         </h2>
-        <p className="text-xs text-neutral-400">
-          Fuente:{" "}
-          <span
-            className={
-              source === "api"
-                ? "text-green-400 font-semibold"
-                : "text-yellow-400 font-semibold"
-            }
-          >
-            {source === "api" ? "API" : "Local (Zustand)"}
-          </span>
-          {error ? (
-            <span className="ml-2 text-[10px] text-red-400">{error}</span>
-          ) : null}
-        </p>
+        {/* El header ya muestra la fuente, aquí no hace falta */}
       </div>
 
       {products.length === 0 ? (
@@ -201,7 +187,6 @@ export default function AdminProductList({
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {/* borrar */}
                   <button
                     onClick={() => handleDelete(p)}
                     className="self-start md:self-auto bg-red-500/20 text-red-400 border border-red-500/40 rounded-lg text-[11px] font-semibold py-2 px-3 hover:bg-red-500/30 hover:text-red-300 transition"
@@ -209,7 +194,6 @@ export default function AdminProductList({
                     Borrar
                   </button>
 
-                  {/* editar */}
                   {!locked && onEdit ? (
                     <button
                       onClick={() => onEdit(p)}
@@ -219,7 +203,6 @@ export default function AdminProductList({
                     </button>
                   ) : null}
 
-                  {/* clonar */}
                   {locked && onClone ? (
                     <button
                       onClick={() => onClone(p)}

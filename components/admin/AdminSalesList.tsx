@@ -1,16 +1,17 @@
+// components/admin/AdminSalesList.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import useSalesStore from "@/store/salesStore";
 import type { SaleRecord } from "@/lib/types";
+import { useAdminDataSource } from "./AdminDataSourceContext";
 
 export default function AdminSalesList() {
   const localSales = useSalesStore((s) => s.sales);
-  const setLocalSales = useSalesStore((s) => s); // para usar luego s.sales
   const [sales, setSales] = useState<SaleRecord[]>([]);
-  const [source, setSource] = useState<"api" | "local">("local");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { setSource, setLastError } = useAdminDataSource();
 
   // cargar ventas
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function AdminSalesList() {
 
     async function load() {
       setLoading(true);
-      setError(null);
+      setLastError(null);
       try {
         const res = await fetch("/api/sales", { method: "GET" });
         if (!res.ok) throw new Error("No se pudo obtener ventas");
@@ -28,12 +29,12 @@ export default function AdminSalesList() {
           setSales(fromApi);
           setSource("api");
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn("[AdminSalesList] usando ventas locales:", err);
         if (!cancelled) {
           setSales(localSales);
           setSource("local");
-          setError("No se pudo leer desde la API, mostrando ventas locales.");
+          setLastError("No se pudo leer ventas desde la API.");
         }
       } finally {
         if (!cancelled) {
@@ -47,7 +48,7 @@ export default function AdminSalesList() {
     return () => {
       cancelled = true;
     };
-  }, [localSales]);
+  }, [localSales, setSource, setLastError]);
 
   async function handleDeleteSale(sale: SaleRecord) {
     const ok = window.confirm(
@@ -55,7 +56,6 @@ export default function AdminSalesList() {
     );
     if (!ok) return;
 
-    // 1) intentar borrar en API
     try {
       const res = await fetch(`/api/sales/${sale.id}`, {
         method: "DELETE",
@@ -63,16 +63,15 @@ export default function AdminSalesList() {
       if (!res.ok) {
         throw new Error("DELETE /api/sales/:id falló");
       }
-      // si se borró en API, quitamos de la lista
       setSales((prev) => prev.filter((s) => s.id !== sale.id));
     } catch (err) {
       console.warn("[AdminSalesList] no se pudo borrar en API, borrando local", err);
-      // 2) fallback: borrar solo local
-      // como el store no tiene removeSale, lo hacemos manual con set
       useSalesStore.setState((state) => ({
         sales: state.sales.filter((s) => s.id !== sale.id),
       }));
       setSales((prev) => prev.filter((s) => s.id !== sale.id));
+      setSource("local");
+      setLastError("No se pudo borrar en API, se borró localmente.");
     }
   }
 
@@ -80,21 +79,6 @@ export default function AdminSalesList() {
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-display font-bold">Ventas</h2>
-        <p className="text-xs text-neutral-400">
-          Fuente:{" "}
-          <span
-            className={
-              source === "api"
-                ? "text-green-400 font-semibold"
-                : "text-yellow-400 font-semibold"
-            }
-          >
-            {source === "api" ? "API" : "Local (Zustand)"}
-          </span>
-          {error ? (
-            <span className="ml-2 text-[10px] text-red-400">{error}</span>
-          ) : null}
-        </p>
       </div>
 
       {sales.length === 0 ? (
@@ -125,9 +109,7 @@ export default function AdminSalesList() {
                   </td>
                   <td className="py-2 px-3 text-xs">
                     {s.customer?.fullName || "—"}
-                    {s.customer?.email
-                      ? ` · ${s.customer.email}`
-                      : ""}
+                    {s.customer?.email ? ` · ${s.customer.email}` : ""}
                   </td>
                   <td className="py-2 px-3 text-xs">
                     {s.items

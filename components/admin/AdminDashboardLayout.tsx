@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
+import { AdminDataSourceProvider } from "./AdminDataSourceContext";
 
 const ADMIN_PASS = "skateradmin";
 
@@ -15,13 +16,10 @@ export default function AdminDashboardLayout({
   const [authed, setAuthed] = useState(false);
   const [pass, setPass] = useState("");
 
-  // leer sesión al montar
   useEffect(() => {
     if (typeof window === "undefined") return;
     const ok = sessionStorage.getItem("skater-admin-ok");
-    if (ok === "yes") {
-      setAuthed(true);
-    }
+    if (ok === "yes") setAuthed(true);
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -63,7 +61,7 @@ export default function AdminDashboardLayout({
             Entrar
           </button>
           <p className="text-[11px] text-neutral-500">
-            (Se guarda en <code>sessionStorage</code> como antes)
+            (Se guarda en sessionStorage como antes)
           </p>
         </form>
       </div>
@@ -71,17 +69,19 @@ export default function AdminDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex">
-      {/* Sidebar */}
-      <AdminSidebar onLogout={handleLogout} />
+    <AdminDataSourceProvider>
+      <div className="min-h-screen bg-neutral-950 text-white flex">
+        {/* Sidebar */}
+        <AdminSidebar onLogout={handleLogout} />
 
-      {/* Contenido principal */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        <AdminHeader />
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-          {children}
-        </main>
+        {/* Contenido principal */}
+        <div className="flex-1 flex flex-col min-h-screen">
+          <AdminHeader />
+          <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AdminDataSourceProvider>
   );
 }
