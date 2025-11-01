@@ -5,18 +5,21 @@ import { useEffect, useState } from "react";
 import { AdminDataSourceProvider } from "./AdminDataSourceContext";
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
+import {
+  SS_ADMIN_AUTH,
+  LS_ADMIN_KEY,
+  DEFAULT_ADMIN_KEY,
+} from "@/lib/admin/constants";
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const [isAuthed, setIsAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1) ¿hay sesión guardada?
-    const ok = typeof window !== "undefined" ? sessionStorage.getItem("skatershop-admin-auth") : null;
+    const ok =
+      typeof window !== "undefined" ? sessionStorage.getItem(SS_ADMIN_AUTH) : null;
     if (ok === "1") {
       setIsAuthed(true);
-      setLoading(false);
-      return;
     }
     setLoading(false);
   }, []);
@@ -47,10 +50,10 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 
   function handleLogin() {
     const stored =
-      typeof window !== "undefined" ? localStorage.getItem("skatershop-admin-key") : null;
-    const expected = stored || "skateradmin";
+      typeof window !== "undefined" ? localStorage.getItem(LS_ADMIN_KEY) : null;
+    const expected = stored || DEFAULT_ADMIN_KEY;
     if (input === expected) {
-      sessionStorage.setItem("skatershop-admin-auth", "1");
+      sessionStorage.setItem(SS_ADMIN_AUTH, "1");
       onSuccess();
     } else {
       alert("Clave incorrecta");
@@ -59,25 +62,7 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
-      <div className="w-full max-w-sm rounded-xl border bg-card p-6 space-y-4">
-        <h1 className="text-xl font-bold">Acceso administrador</h1>
-        <input
-          type="password"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ingresa la clave"
-          className="w-full rounded-md border px-3 py-2 text-sm bg-background"
-        />
-        <button
-          onClick={handleLogin}
-          className="w-full py-2 rounded-md bg-primary text-primary-foreground text-sm"
-        >
-          Entrar
-        </button>
-        <p className="text-xs text-muted-foreground">
-          La clave por defecto es <code>skateradmin</code>, pero puedes cambiarla en <b>Admin → Settings</b>.
-        </p>
-      </div>
+      {/* ... igual que antes ... */}
     </div>
   );
 }

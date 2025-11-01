@@ -1,45 +1,31 @@
 // app/api/sales/[id]/route.ts
 import { NextResponse } from "next/server";
+import type { SaleRecord } from "@/lib/admin/types";
 import {
-  salesMemory,
+  getSaleFromMemory,
   removeSaleFromMemory,
 } from "@/lib/server/salesMemory";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
+type Params = {
+  params: {
+    id: string;
+  };
+};
 
-  const sale = salesMemory.find((s) => s.id === id);
+// GET /api/sales/:id
+export async function GET(_req: Request, { params }: Params) {
+  const sale = getSaleFromMemory(params.id);
   if (!sale) {
-    return NextResponse.json(
-      { error: "Venta no encontrada" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Sale not found" }, { status: 404 });
   }
-
-  return NextResponse.json({ sale }, { status: 200 });
+  return NextResponse.json(sale satisfies SaleRecord);
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
-
-  const removed = removeSaleFromMemory(id);
-
-  // aunque no esté en memoria, devolvemos 200 para no romper el admin
-  if (!removed) {
-    return NextResponse.json(
-      {
-        ok: true,
-        note: "La venta no estaba en memoria (posible origen local / zustand)",
-      },
-      { status: 200 }
-    );
+// DELETE /api/sales/:id
+export async function DELETE(_req: Request, { params }: Params) {
+  const ok = removeSaleFromMemory(params.id);
+  if (!ok) {
+    return NextResponse.json({ error: "Sale not found" }, { status: 404 });
   }
-
-  return NextResponse.json({ ok: true }, { status: 200 });
+  return NextResponse.json({ ok: true });
 }

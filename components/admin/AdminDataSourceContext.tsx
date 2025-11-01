@@ -1,43 +1,125 @@
 // components/admin/AdminDataSourceContext.tsx
 "use client";
 
-import {
+import React, {
   createContext,
   useContext,
+  useEffect,
   useState,
-  type ReactNode,
-  type Dispatch,
-  type SetStateAction,
+  useCallback,
 } from "react";
+import {
+  LS_DATASOURCE,
+  LS_DATASOURCE_MODE,
+} from "@/lib/admin/constants";
 
-export type AdminDataSource = "api" | "local";
+type DataSource = "api" | "local";
+type DataSourceMode = "auto" | "force";
 
-type AdminDataSourceCtx = {
-  source: AdminDataSource;
-  setSource: Dispatch<SetStateAction<AdminDataSource>>;
+interface AdminDataSourceContextValue {
+  source: DataSource;
+  setSource: (s: DataSource) => void;
+  mode: DataSourceMode;
+  setMode: (m: DataSourceMode) => void;
   lastError: string | null;
-  setLastError: Dispatch<SetStateAction<string | null>>;
-};
+  setLastError: (err: string | null) => void;
+  reportApiSuccess: () => void;
+  reportApiError: (msg: string) => void;
+}
 
-const Ctx = createContext<AdminDataSourceCtx | null>(null);
+const AdminDataSourceContext = createContext<AdminDataSourceContextValue | null>(
+  null
+);
 
-export function AdminDataSourceProvider({ children }: { children: ReactNode }) {
-  const [source, setSource] = useState<AdminDataSource>("local");
-  const [lastError, setLastError] = useState<string | null>(null);
+export function AdminDataSourceProvider({ children }: { children: React.ReactNode }) {
+  const [source, setSourceState] = useState<DataSource>("api");
+  const [mode, setModeState] = useState<DataSourceMode>("auto");
+  const [lastError, setLastErrorState] = useState<string | null>(null);
+
+  // load from LS once
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedSource = window.localStorage.getItem(LS_DATASOURCE) as DataSource | null;
+    const savedMode = window.localStorage.getItem(LS_DATASOURCE_MODE) as
+      | DataSourceMode
+      | null;
+    if (savedSource === "api" || savedSource === "local") {
+      setSourceState(savedSource);
+    }
+    if (savedMode === "auto" || savedMode === "force") {
+      setModeState(savedMode);
+    }
+  }, []);
+
+  // persist source
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LS_DATASOURCE, source);
+  }, [source]);
+
+  // persist mode
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LS_DATASOURCE_MODE, mode);
+  }, [mode]);
+
+  const setSource = useCallback((s: DataSource) => {
+    setSourceState(s);
+  }, []);
+
+  const setMode = useCallback((m: DataSourceMode) => {
+    setModeState(m);
+  }, []);
+
+  const setLastError = useCallback((err: string | null) => {
+    setLastErrorState(err);
+  }, []);
+
+  const reportApiSuccess = useCallback(() => {
+    // si es automático, puedes cambiar la fuente
+    setLastError(null);
+    setSourceState((prev) => {
+      // si ya era api, no pasa nada
+      return prev === "api" ? prev : "api";
+    });
+  }, [setLastError]);
+
+  const reportApiError = useCallback(
+    (msg: string) => {
+      setLastError(msg);
+      // solo caer a local si es auto
+      setSourceState((prev) => {
+        if (mode === "auto") {
+          return "local";
+        }
+        return prev;
+      });
+    },
+    [mode, setLastError]
+  );
 
   return (
-    <Ctx.Provider value={{ source, setSource, lastError, setLastError }}>
+    <AdminDataSourceContext.Provider
+      value={{
+        source,
+        setSource,
+        mode,
+        setMode,
+        lastError,
+        setLastError,
+        reportApiSuccess,
+        reportApiError,
+      }}
+    >
       {children}
-    </Ctx.Provider>
+    </AdminDataSourceContext.Provider>
   );
 }
 
 export function useAdminDataSource() {
-  const ctx = useContext(Ctx);
+  const ctx = useContext(AdminDataSourceContext);
   if (!ctx) {
-    throw new Error(
-      "useAdminDataSource debe usarse dentro de <AdminDataSourceProvider>"
-    );
+    throw new Error("useAdminDataSource debe usarse dentro de <AdminDataSourceProvider>");
   }
   return ctx;
 }

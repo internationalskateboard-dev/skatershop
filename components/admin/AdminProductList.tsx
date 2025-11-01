@@ -1,7 +1,7 @@
 // components/admin/AdminProductList.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
@@ -14,10 +14,7 @@ type AdminProductListProps = {
   onClone?: (p: Product) => void;
 };
 
-export default function AdminProductList({
-  onEdit,
-  onClone,
-}: AdminProductListProps) {
+export default function AdminProductList({ onEdit, onClone }: AdminProductListProps) {
   const {
     products: localProducts,
     removeProduct: removeLocalProduct,
@@ -27,44 +24,35 @@ export default function AdminProductList({
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { setSource, setLastError } = useAdminDataSource();
+  // del contexto: ya no usamos setSource / setLastError directamente
+  const { reportApiSuccess, reportApiError, source, mode } = useAdminDataSource();
+
+  // función estable para cargar
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/products", { method: "GET" });
+      if (!res.ok) throw new Error("No se pudo leer /api/products");
+      const data = await res.json();
+      const apiProducts = (data.products || []) as Product[];
+      setProducts(apiProducts);
+      // avisamos al contexto que la API está viva
+      reportApiSuccess();
+    } catch (err: unknown) {
+      console.warn("[AdminProductList] usando productos locales:", err);
+      // avisamos al contexto que falló
+      reportApiError("No se pudo leer productos desde la API.");
+      // fallback: lo que haya en el store
+      setProducts(localProducts);
+    } finally {
+      setLoading(false);
+    }
+  }, [localProducts, reportApiError, reportApiSuccess]);
 
   // cargar productos al montar
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setLastError(null);
-      try {
-        const res = await fetch("/api/products", { method: "GET" });
-        if (!res.ok) throw new Error("No se pudo leer /api/products");
-        const data = await res.json();
-        const apiProducts = (data.products || []) as Product[];
-        if (!cancelled) {
-          setProducts(apiProducts);
-          setSource("api");
-        }
-      } catch (err: unknown) {
-        console.warn("[AdminProductList] usando productos locales:", err);
-        if (!cancelled) {
-          setProducts(localProducts);
-          setSource("local");
-          setLastError("No se pudo leer productos desde la API.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [localProducts, setSource, setLastError]);
+    void loadProducts();
+  }, [loadProducts]);
 
   async function handleDelete(p: Product) {
     const soldQty = getSoldQty(p.id);
@@ -73,31 +61,37 @@ export default function AdminProductList({
       return;
     }
 
-    // intentamos borrar en API primero
-    try {
-      const res = await fetch(`/api/products/${p.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error("DELETE API falló");
+    // si el modo lo permite o estamos en API, intentamos borrar en API
+    const canCallApi = mode !== "force" || (mode === "force" && source === "api");
+
+    if (canCallApi) {
+      try {
+        const res = await fetch(`/api/products/${p.id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          throw new Error("DELETE API falló");
+        }
+        // si salió bien en API, actualizamos también el local
+        setProducts((prev) => prev.filter((x) => x.id !== p.id));
+        removeLocalProduct(p.id);
+        return;
+      } catch (err) {
+        console.warn("[AdminProductList] DELETE API falló, borrando local:", err);
+        // reportamos solo si estábamos en automático
+        reportApiError("No se pudo borrar en API, se borró localmente.");
       }
-      setProducts((prev) => prev.filter((x) => x.id !== p.id));
-      removeLocalProduct(p.id);
-    } catch (err) {
-      console.warn("[AdminProductList] DELETE API falló, borrando local:", err);
-      removeLocalProduct(p.id);
-      setProducts((prev) => prev.filter((x) => x.id !== p.id));
-      setSource("local");
-      setLastError("No se pudo borrar en API, se borró localmente.");
     }
+
+    // siempre borrar localmente como fallback
+    removeLocalProduct(p.id);
+    setProducts((prev) => prev.filter((x) => x.id !== p.id));
   }
 
   return (
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
       <div className="flex items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl font-display font-bold">
-          Productos en memoria / API
-        </h2>
+        <h2 className="text-xl font-display font-bold">Productos en memoria / API</h2>
         {/* El header ya muestra la fuente, aquí no hace falta */}
       </div>
 
@@ -112,8 +106,7 @@ export default function AdminProductList({
             const locked = soldQty > 0;
 
             const isTruncated =
-              typeof p.image === "string" &&
-              p.image.includes("...truncated");
+              typeof p.image === "string" && p.image.includes("...truncated");
             const imageToShow =
               !p.image || isTruncated ? PRODUCT_PLACEHOLDER_IMAGE : p.image;
 
@@ -125,9 +118,7 @@ export default function AdminProductList({
                 <div className="text-sm">
                   <p className="font-semibold text-white flex items-center gap-2 flex-wrap">
                     <span>{p.name}</span>
-                    <span className="text-[10px] text-neutral-500">
-                      ({p.id})
-                    </span>
+                    <span className="text-[10px] text-neutral-500">({p.id})</span>
                     {locked && (
                       <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-[2px] font-bold uppercase tracking-wide">
                         LOCKED
@@ -145,9 +136,7 @@ export default function AdminProductList({
 
                   <p className="text-neutral-400 text-xs">
                     Tallas:{" "}
-                    {Array.isArray(p.sizes) && p.sizes.length
-                      ? p.sizes.join(", ")
-                      : "—"}
+                    {Array.isArray(p.sizes) && p.sizes.length ? p.sizes.join(", ") : "—"}
                   </p>
 
                   {p.colors?.length ? (
