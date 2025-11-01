@@ -8,7 +8,8 @@ export default function AdminSalesPage() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Ventas</h2>
       <p className="text-sm text-neutral-400">
-        Listado de ventas registradas. Puedes exportar a CSV o borrar ventas de prueba.
+        Aquí ves las ventas que vienen del checkout. Si estás en modo local o la
+        API no responde, se cargan desde Zustand.
       </p>
       <AdminSalesList />
     </div>
