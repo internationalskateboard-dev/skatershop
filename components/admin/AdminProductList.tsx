@@ -6,7 +6,7 @@ import Image from "next/image";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
-import type { Product } from "@/lib/types";
+import type { Product } from "@/lib/admin/types";
 import { useAdminDataSource } from "./AdminDataSourceContext";
 
 type AdminProductListProps = {

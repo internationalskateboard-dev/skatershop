@@ -1,54 +1,32 @@
-// app/api/products/[id]/route.ts
+// app/api/products/route.ts
 import { NextResponse } from "next/server";
+import type { Product } from "@/lib/admin/types";
 import {
   productsMemory,
-  removeProductFromMemory,
+  upsertProductInMemory,
 } from "@/lib/server/productsMemory";
-import { productsBase } from "@/lib/productsBase";
 
-// GET opcional por si quieres consultar un producto desde el panel
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
-
-  // primero buscamos en memoria
-  const mem = productsMemory.find((p) => p.id === id);
-  if (mem) {
-    return NextResponse.json({ product: mem, from: "memory" });
-  }
-
-  // luego en base
-  const base = productsBase.find((p) => p.id === id);
-  if (base) {
-    return NextResponse.json({ product: base, from: "base" });
-  }
-
-  return NextResponse.json(
-    { error: "Producto no encontrado" },
-    { status: 404 }
-  );
+// GET /api/products
+export async function GET() {
+  // si tuvieras una "base" real, aquí la mezclarías
+  // por ahora devolvemos solo lo que hay en memoria
+  return NextResponse.json({
+    products: productsMemory satisfies Product[],
+  });
 }
 
-// DELETE /api/products/:id
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
+// POST /api/products
+// crea o actualiza en memoria
+export async function POST(req: Request) {
+  const body = (await req.json()) as Product;
 
-  // intentamos borrar en memoria
-  const removed = removeProductFromMemory(id);
-
-  if (!removed) {
-    // si no estaba en memoria, igual devolvemos 200 para no romper admin,
-    // porque puede ser un producto "base" que no queremos borrar ahí.
+  if (!body.id) {
     return NextResponse.json(
-      { ok: true, note: "No estaba en memoria, probablemente era base" },
-      { status: 200 }
+      { error: "Product id is required" },
+      { status: 400 }
     );
   }
 
-  return NextResponse.json({ ok: true }, { status: 200 });
+  const saved = upsertProductInMemory(body);
+  return NextResponse.json(saved, { status: 201 });
 }
