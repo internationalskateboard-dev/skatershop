@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
-import type { Product } from "@/lib/admin/types";
-import { useAdminDataSource } from "@/components/admin/AdminDataSourceContext";
+import Image from "next/image";
 
 const DEFAULT_SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
 
@@ -16,7 +14,7 @@ type ColorImage = {
 };
 
 type AdminProductFormProps = {
-  initialData?: Product | null;
+  initialData?: any | null;
   onSaved?: () => void;
 };
 
@@ -30,9 +28,6 @@ export default function AdminProductForm({
     updateProduct,
   } = useProductStore();
   const getSoldQty = useSalesStore((s) => s.getSoldQty);
-
-  // del contexto: para saber si el admin está forzando local/API
-  const { mode, source } = useAdminDataSource();
 
   const [form, setForm] = useState({
     id: "",
@@ -69,7 +64,7 @@ export default function AdminProductForm({
       price:
         typeof initialData.price === "number"
           ? String(initialData.price)
-          : (initialData.price as unknown as string) ?? "",
+          : initialData.price ?? "",
       imageData: !isTruncated && initialData.image ? initialData.image : "",
       desc: initialData.desc ?? "",
       details: initialData.details ?? "",
@@ -80,18 +75,16 @@ export default function AdminProductForm({
       stock:
         typeof initialData.stock === "number"
           ? String(initialData.stock)
-          : initialData.stock
-          ? String(initialData.stock)
-          : "1",
+          : initialData.stock ?? "1",
       colorsText: initialData.colors?.length
-        ? initialData.colors.map((c) => c.name).join(",")
+        ? initialData.colors.map((c: any) => c.name).join(",")
         : "Negro,Blanco",
       sizeGuide: initialData.sizeGuide ?? "",
     });
 
     if (initialData.colors?.length) {
       setColorImages(
-        initialData.colors.map((c) => ({
+        initialData.colors.map((c: any) => ({
           name: c.name,
           image:
             c.image && !c.image.includes("...truncated") ? c.image : "",
@@ -193,7 +186,6 @@ export default function AdminProductForm({
       return;
     }
 
-    // si ya tiene ventas, no lo dejo editar
     const soldAlready = getSoldQty(form.id.trim());
     if (soldAlready > 0) {
       alert("Este producto ya tiene ventas y no puede ser modificado.");
@@ -216,7 +208,7 @@ export default function AdminProductForm({
           })
         : [];
 
-    const newProduct: Product = {
+    const newProduct = {
       id: form.id.trim(),
       name: form.name.trim(),
       price: parseFloat(form.price),
@@ -232,31 +224,16 @@ export default function AdminProductForm({
     setSaving(true);
     setSaveMessage(null);
 
-    const shouldCallApi = mode !== "force" || (mode === "force" && source === "api");
-
     try {
-      if (shouldCallApi) {
-        const res = await fetch("/api/products", {
-          method: "POST",
-          body: JSON.stringify(newProduct),
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error("API no disponible");
-        // si la API guardó, sincronizamos el store
-        updateProduct(newProduct.id, newProduct);
-        setSaveMessage("Producto guardado en API ✅");
-      } else {
-        // modo forzado: solo local
-        const exists = localProducts.find((p: any) => p.id === newProduct.id);
-        if (exists) {
-          updateProduct(newProduct.id, newProduct);
-        } else {
-          addProduct(newProduct);
-        }
-        setSaveMessage("Producto guardado LOCALMENTE (modo forzado) ⚠️");
-      }
+      const res = await fetch("/api/products", {
+        method: "POST",
+        body: JSON.stringify(newProduct),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("API no disponible");
+      updateProduct(newProduct.id, newProduct);
+      setSaveMessage("Producto guardado en API ✅");
     } catch (err) {
-      // fallback local
       const exists = localProducts.find((p: any) => p.id === newProduct.id);
       if (exists) {
         updateProduct(newProduct.id, newProduct);

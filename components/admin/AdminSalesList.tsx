@@ -1,211 +1,143 @@
 // components/admin/AdminSalesList.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAdminDataSource } from "@/components/admin/AdminDataSourceContext";
-import { downloadSalesCsv } from "@/lib/admin/exportCsv";
+import { useEffect, useState } from "react";
+import useSalesStore from "@/store/salesStore";
 import type { SaleRecord } from "@/lib/types";
+import { useAdminDataSource } from "./AdminDataSourceContext";
 
 export default function AdminSalesList() {
-  const { reportApiSuccess, reportApiError } = useAdminDataSource();
+  const localSales = useSalesStore((s) => s.sales);
   const [sales, setSales] = useState<SaleRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // filtros
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [productFilter, setProductFilter] = useState("");
+  const { setSource, setLastError } = useAdminDataSource();
 
-  const loadSales = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/sales");
-      if (!res.ok) throw new Error("No se pudo cargar /api/sales");
-      // tu API devuelve { sales: SaleRecord[] }
-      const data = (await res.json()) as { sales: SaleRecord[] };
-      setSales(data.sales || []);
-      reportApiSuccess();
-    } catch (err: any) {
-      console.warn("[AdminSalesList] API falló, usando vacío/local", err);
-      reportApiError(err?.message || "Error al cargar ventas");
-      // si tuvieras un store local de ventas, lo pondrías aquí
-      setSales([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [reportApiError, reportApiSuccess]);
-
+  // cargar ventas
   useEffect(() => {
-    void loadSales();
-  }, [loadSales]);
+    let cancelled = false;
 
-  const filteredSales = useMemo(() => {
-    return sales.filter((s) => {
-      // filtro por fecha desde
-      if (dateFrom) {
-        const dFrom = new Date(dateFrom);
-        const dCreated = new Date(s.createdAt);
-        if (dCreated < dFrom) return false;
+    async function load() {
+      setLoading(true);
+      setLastError(null);
+      try {
+        const res = await fetch("/api/sales", { method: "GET" });
+        if (!res.ok) throw new Error("No se pudo obtener ventas");
+        const data = await res.json();
+        const fromApi = Array.isArray(data.sales) ? data.sales : [];
+        if (!cancelled) {
+          setSales(fromApi);
+          setSource("api");
+        }
+      } catch (err: unknown) {
+        console.warn("[AdminSalesList] usando ventas locales:", err);
+        if (!cancelled) {
+          setSales(localSales);
+          setSource("local");
+          setLastError("No se pudo leer ventas desde la API.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      // filtro por fecha hasta (incluimos el día completo)
-      if (dateTo) {
-        const dTo = new Date(dateTo);
-        const dCreated = new Date(s.createdAt);
-        dTo.setHours(23, 59, 59, 999);
-        if (dCreated > dTo) return false;
-      }
-      // filtro por producto
-      if (productFilter.trim()) {
-        const pf = productFilter.trim().toLowerCase();
-        const hasProduct = (s.items || []).some((it) =>
-          (it.productId || "").toLowerCase().includes(pf)
-        );
-        if (!hasProduct) return false;
-      }
-      return true;
-    });
-  }, [sales, dateFrom, dateTo, productFilter]);
+    }
 
-  function handleExportCsv() {
-    // exporta SOLO lo que está filtrado
-    downloadSalesCsv(filteredSales, "ventas-filtradas.csv");
-  }
+    load();
 
-  async function handleDelete(id: string) {
-    const ok = confirm("¿Borrar esta venta de prueba?");
+    return () => {
+      cancelled = true;
+    };
+  }, [localSales, setSource, setLastError]);
+
+  async function handleDeleteSale(sale: SaleRecord) {
+    const ok = window.confirm(
+      `¿Borrar la venta ${sale.id}? Esto es solo para limpiar pruebas.`
+    );
     if (!ok) return;
-    const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setSales((prev) => prev.filter((s) => s.id !== id));
-    } else {
-      alert("No se pudo borrar");
+
+    try {
+      const res = await fetch(`/api/sales/${sale.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error("DELETE /api/sales/:id falló");
+      }
+      setSales((prev) => prev.filter((s) => s.id !== sale.id));
+    } catch (err) {
+      console.warn("[AdminSalesList] no se pudo borrar en API, borrando local", err);
+      useSalesStore.setState((state) => ({
+        sales: state.sales.filter((s) => s.id !== sale.id),
+      }));
+      setSales((prev) => prev.filter((s) => s.id !== sale.id));
+      setSource("local");
+      setLastError("No se pudo borrar en API, se borró localmente.");
     }
   }
 
   return (
-    <div className="space-y-4">
-      {/* header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Ventas</h1>
-          <p className="text-sm text-muted-foreground">
-            Filtra por fecha o por producto y exporta solo lo que ves.
-          </p>
-        </div>
-        <button
-          onClick={handleExportCsv}
-          className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
-        >
-          Exportar CSV (filtrado)
-        </button>
+    <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h2 className="text-xl font-display font-bold">Ventas</h2>
       </div>
 
-      {/* filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-card border rounded-xl p-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Desde</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-md border px-3 py-2 text-sm bg-background"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Hasta</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-md border px-3 py-2 text-sm bg-background"
-          />
-        </div>
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="text-xs text-muted-foreground">Producto (ID contiene)</label>
-          <input
-            value={productFilter}
-            onChange={(e) => setProductFilter(e.target.value)}
-            placeholder="p.ej. deck-01"
-            className="rounded-md border px-3 py-2 text-sm bg-background"
-          />
-        </div>
-      </div>
-
-      {/* tabla */}
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="text-left px-3 py-2">ID</th>
-              <th className="text-left px-3 py-2">Fecha</th>
-              <th className="text-left px-3 py-2">Items</th>
-              <th className="text-left px-3 py-2">Cliente</th>
-              <th className="text-left px-3 py-2">Total</th>
-              <th className="text-right px-3 py-2">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
-                  Cargando ventas…
-                </td>
+      {sales.length === 0 ? (
+        <p className="text-neutral-500 text-sm">
+          {loading ? "Cargando ventas..." : "No hay ventas registradas."}
+        </p>
+      ) : (
+        <div className="overflow-x-auto -mx-3 md:mx-0">
+          <table className="min-w-full text-sm text-left text-neutral-200">
+            <thead>
+              <tr className="border-b border-neutral-800 text-xs uppercase text-neutral-500">
+                <th className="py-2 px-3">ID</th>
+                <th className="py-2 px-3">Fecha</th>
+                <th className="py-2 px-3">Cliente</th>
+                <th className="py-2 px-3">Items</th>
+                <th className="py-2 px-3 text-right">Total</th>
+                <th className="py-2 px-3 text-right">Acciones</th>
               </tr>
-            ) : filteredSales.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
-                  No hay ventas que coincidan con el filtro.
-                </td>
-              </tr>
-            ) : (
-              filteredSales.map((s) => (
-                <tr key={s.id} className="border-t">
-                  <td className="px-3 py-2 font-mono text-xs">{s.id}</td>
-                  <td className="px-3 py-2">
-                    {new Date(s.createdAt).toLocaleString("es-ES", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+            </thead>
+            <tbody>
+              {sales.map((s) => (
+                <tr key={s.id} className="border-b border-neutral-800/50">
+                  <td className="py-2 px-3 text-xs text-neutral-400">
+                    {s.id}
                   </td>
-                  <td className="px-3 py-2">
-                    <ul className="space-y-0.5">
-                      {s.items?.map((it, idx) => (
-                        <li key={idx}>
-                          <span className="font-mono">{it.productId}</span> ×{it.qty}{" "}
-                          {it.size ? `(${it.size})` : ""}
-                        </li>
-                      ))}
-                    </ul>
+                  <td className="py-2 px-3 text-xs">
+                    {new Date(s.createdAt).toLocaleString()}
                   </td>
-                  <td className="px-3 py-2">
-                    {s.customer?.fullName ? (
-                      <>
-                        <div>{s.customer.fullName}</div>
-                        {s.customer.email ? (
-                          <div className="text-xs text-muted-foreground">
-                            {s.customer.email}
-                          </div>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                  <td className="py-2 px-3 text-xs">
+                    {s.customer?.fullName || "—"}
+                    {s.customer?.email ? ` · ${s.customer.email}` : ""}
                   </td>
-                  <td className="px-3 py-2 font-semibold">€ {s.total.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="py-2 px-3 text-xs">
+                    {s.items
+                      .map(
+                        (it) =>
+                          `${it.productId} x${it.qty}${
+                            it.size ? ` (${it.size})` : ""
+                          }`
+                      )
+                      .join(", ")}
+                  </td>
+                  <td className="py-2 px-3 text-right text-yellow-400 font-semibold">
+                    €{(s.total ?? 0).toFixed(2)}
+                  </td>
+                  <td className="py-2 px-3 text-right">
                     <button
-                      onClick={() => handleDelete(s.id)}
-                      className="text-xs text-red-500 hover:underline"
+                      onClick={() => handleDeleteSale(s)}
+                      className="text-[11px] bg-red-500/20 text-red-300 border border-red-500/40 rounded-md px-3 py-1 hover:bg-red-500/30 transition"
                     >
                       Borrar
                     </button>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

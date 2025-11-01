@@ -1,8 +1,11 @@
 // app/admin/layout.tsx
-"use client";
-
+import type { ReactNode } from "react";
 import AdminDashboardLayout from "@/components/admin/AdminDashboardLayout";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export const metadata = {
+  title: "Admin | SkaterShop",
+};
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
   return <AdminDashboardLayout>{children}</AdminDashboardLayout>;
 }
