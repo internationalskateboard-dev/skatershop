@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import {
   LS_DATASOURCE,
   LS_DATASOURCE_MODE,
@@ -20,17 +26,22 @@ interface AdminDataSourceContextValue {
   reportApiError: (msg: string) => void;
 }
 
-const AdminDataSourceContext = createContext<AdminDataSourceContextValue | null>(null);
+const AdminDataSourceContext = createContext<AdminDataSourceContextValue | null>(
+  null
+);
 
 export function AdminDataSourceProvider({ children }: { children: React.ReactNode }) {
   const [source, setSourceState] = useState<DataSource>("api");
   const [mode, setModeState] = useState<DataSourceMode>("auto");
   const [lastError, setLastErrorState] = useState<string | null>(null);
 
+  // cargar
   useEffect(() => {
     if (typeof window === "undefined") return;
     const savedSource = window.localStorage.getItem(LS_DATASOURCE) as DataSource | null;
-    const savedMode = window.localStorage.getItem(LS_DATASOURCE_MODE) as DataSourceMode | null;
+    const savedMode = window.localStorage.getItem(LS_DATASOURCE_MODE) as
+      | DataSourceMode
+      | null;
     if (savedSource === "api" || savedSource === "local") {
       setSourceState(savedSource);
     }
@@ -39,6 +50,7 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
     }
   }, []);
 
+  // persistir
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(LS_DATASOURCE, source);
@@ -62,7 +74,7 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
   }, []);
 
   const reportApiSuccess = useCallback(() => {
-    // solo cambiaremos a API si estamos en modo auto
+    // si estamos en auto, podemos pasar a API
     setLastError(null);
     setSourceState((prev) => (prev === "api" ? prev : "api"));
   }, [setLastError]);
@@ -71,8 +83,8 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
     (msg: string) => {
       setLastError(msg);
       setSourceState((prev) => {
-        if (mode === "auto") return "local";
-        return prev;
+        // solo caemos a local si es auto
+        return mode === "auto" ? "local" : prev;
       });
     },
     [mode, setLastError]
@@ -99,7 +111,7 @@ export function AdminDataSourceProvider({ children }: { children: React.ReactNod
 export function useAdminDataSource() {
   const ctx = useContext(AdminDataSourceContext);
   if (!ctx) {
-    throw new Error("useAdminDataSource must be used within AdminDataSourceProvider");
+    throw new Error("useAdminDataSource debe usarse dentro de AdminDataSourceProvider");
   }
   return ctx;
 }
