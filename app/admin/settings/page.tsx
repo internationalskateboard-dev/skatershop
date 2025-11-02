@@ -1,28 +1,26 @@
+// app/admin/settings/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useAdminDataSource } from "@/components/admin/AdminDataSourceContext";
-import {
-  LS_ADMIN_KEY,
-  DEFAULT_ADMIN_KEY,
-} from "@/lib/admin/constants";
+import { LS_ADMIN_KEY, DEFAULT_ADMIN_KEY } from "@/lib/admin/constants";
 import useProductStore from "@/store/productStore";
 import type { Product, ProductsApiResponse } from "@/lib/types";
 
-export default function AdminSettingsPage() {
-  const {
-    source,
-    setSource,
-    mode,
-    setMode,
-    lastError,
-  } = useAdminDataSource();
+type AdminSourceInfo = {
+  productsUrl: string | null;
+  salesUrl: string | null;
+  salesPostUrl: string | null;
+};
 
+export default function AdminSettingsPage() {
+  const { source, setSource, mode, setMode, lastError } = useAdminDataSource();
   const { addProduct, updateProduct } = useProductStore();
 
   const [adminKey, setAdminKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const [remoteInfo, setRemoteInfo] = useState<AdminSourceInfo | null>(null);
 
   // cargar clave actual
   useEffect(() => {
@@ -31,6 +29,21 @@ export default function AdminSettingsPage() {
         ? window.localStorage.getItem(LS_ADMIN_KEY)
         : "";
     setAdminKey(k || DEFAULT_ADMIN_KEY);
+  }, []);
+
+  // leer qué backend está configurado en el server
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/source");
+        if (res.ok) {
+          const data = (await res.json()) as AdminSourceInfo;
+          setRemoteInfo(data);
+        }
+      } catch (err) {
+        console.warn("[AdminSettings] no se pudo leer /api/admin/source", err);
+      }
+    })();
   }, []);
 
   function handleSaveKey() {
@@ -63,6 +76,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Ajustes del panel</h1>
         <p className="text-sm text-neutral-400">
@@ -133,10 +147,51 @@ export default function AdminSettingsPage() {
           </button>
         </div>
         <p className="text-xs text-neutral-500">Fuente actual: {source}</p>
+
         {lastError ? (
           <p className="text-xs text-red-400 mt-1">
             Último error de API: <span className="font-mono">{lastError}</span>
           </p>
+        ) : null}
+
+        {/* Info del backend real configurado */}
+        {remoteInfo ? (
+          <div className="mt-3 border-t border-neutral-800 pt-3 space-y-1">
+            <p className="text-[11px] text-neutral-400">
+              Backend productos:{" "}
+              {remoteInfo.productsUrl ? (
+                <span className="text-neutral-200 break-all">
+                  {remoteInfo.productsUrl}
+                </span>
+              ) : (
+                <span className="text-neutral-600">no configurado</span>
+              )}
+            </p>
+            <p className="text-[11px] text-neutral-400">
+              Backend ventas (GET):{" "}
+              {remoteInfo.salesUrl ? (
+                <span className="text-neutral-200 break-all">
+                  {remoteInfo.salesUrl}
+                </span>
+              ) : (
+                <span className="text-neutral-600">no configurado</span>
+              )}
+            </p>
+            <p className="text-[11px] text-neutral-400">
+              Backend ventas (POST):{" "}
+              {remoteInfo.salesPostUrl ? (
+                <span className="text-neutral-200 break-all">
+                  {remoteInfo.salesPostUrl}
+                </span>
+              ) : remoteInfo.salesUrl ? (
+                <span className="text-neutral-200 break-all">
+                  {remoteInfo.salesUrl}
+                </span>
+              ) : (
+                <span className="text-neutral-600">no configurado</span>
+              )}
+            </p>
+          </div>
         ) : null}
       </div>
 
@@ -172,7 +227,9 @@ export default function AdminSettingsPage() {
         >
           Cargar productos desde /api/products
         </button>
-        {seedMsg ? <p className="text-xs text-neutral-400 mt-2">{seedMsg}</p> : null}
+        {seedMsg ? (
+          <p className="text-xs text-neutral-400 mt-2">{seedMsg}</p>
+        ) : null}
       </div>
     </div>
   );
