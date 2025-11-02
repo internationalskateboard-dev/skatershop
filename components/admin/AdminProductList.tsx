@@ -1,13 +1,14 @@
 // components/admin/AdminProductList.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 import { useAdminDataSource } from "./AdminDataSourceContext";
+import { downloadProductsCsv } from "@/lib/admin/exportProductsCsv";
 
 type AdminProductListProps = {
   onEdit?: (p: Product) => void;
@@ -26,8 +27,10 @@ export default function AdminProductList({
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
-  const { setSource, setLastError } = useAdminDataSource();
+  const { setSource, setLastError, reportApiSuccess, reportApiError } =
+    useAdminDataSource();
 
   // cargar productos al montar
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function AdminProductList({
         if (!cancelled) {
           setProducts(apiProducts);
           setSource("api");
+          reportApiSuccess();
         }
       } catch (err: unknown) {
         console.warn("[AdminProductList] usando productos locales:", err);
@@ -51,6 +55,7 @@ export default function AdminProductList({
           setProducts(localProducts);
           setSource("local");
           setLastError("No se pudo leer productos desde la API.");
+          reportApiError("No se pudo leer productos desde la API.");
         }
       } finally {
         if (!cancelled) {
@@ -59,12 +64,25 @@ export default function AdminProductList({
       }
     }
 
-    load();
+    void load();
 
     return () => {
       cancelled = true;
     };
-  }, [localProducts, setSource, setLastError]);
+  }, [localProducts, setSource, setLastError, reportApiError, reportApiSuccess]);
+
+  // filtro por texto
+  const filteredProducts = useMemo(() => {
+    if (!search.trim()) return products;
+    const q = search.trim().toLowerCase();
+    return products.filter((p) => {
+      return (
+        (p.id && p.id.toLowerCase().includes(q)) ||
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.desc && p.desc.toLowerCase().includes(q))
+      );
+    });
+  }, [products, search]);
 
   async function handleDelete(p: Product) {
     const soldQty = getSoldQty(p.id);
@@ -83,37 +101,59 @@ export default function AdminProductList({
       }
       setProducts((prev) => prev.filter((x) => x.id !== p.id));
       removeLocalProduct(p.id);
+      reportApiSuccess();
     } catch (err) {
       console.warn("[AdminProductList] DELETE API falló, borrando local:", err);
       removeLocalProduct(p.id);
       setProducts((prev) => prev.filter((x) => x.id !== p.id));
       setSource("local");
-      setLastError("No se pudo borrar en API, se borró localmente.");
+      const msg = "No se pudo borrar en API, se borró localmente.";
+      setLastError(msg);
+      reportApiError(msg);
     }
+  }
+
+  function handleExportCsv() {
+    downloadProductsCsv(filteredProducts, "inventario-filtrado.csv");
   }
 
   return (
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl font-display font-bold">
-          Productos en memoria / API
-        </h2>
-        {/* El header ya muestra la fuente, aquí no hace falta */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-white">Productos</h2>
+          <p className="text-xs text-neutral-500">
+            Filtra por ID, nombre o descripción. Exporta solo lo filtrado.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar producto…"
+            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white outline-none focus:border-yellow-400"
+          />
+          <button
+            onClick={handleExportCsv}
+            className="bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
+          >
+            Exportar CSV
+          </button>
+        </div>
       </div>
 
-      {products.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <p className="text-neutral-500 text-sm">
-          {loading ? "Cargando productos..." : "No hay productos creados aún."}
+          {loading ? "Cargando productos..." : "No hay productos que coincidan con el filtro."}
         </p>
       ) : (
         <ul className="space-y-4">
-          {products.map((p) => {
+          {filteredProducts.map((p) => {
             const soldQty = getSoldQty(p.id);
             const locked = soldQty > 0;
 
             const isTruncated =
-              typeof p.image === "string" &&
-              p.image.includes("...truncated");
+              typeof p.image === "string" && p.image.includes("...truncated");
             const imageToShow =
               !p.image || isTruncated ? PRODUCT_PLACEHOLDER_IMAGE : p.image;
 
@@ -125,9 +165,7 @@ export default function AdminProductList({
                 <div className="text-sm">
                   <p className="font-semibold text-white flex items-center gap-2 flex-wrap">
                     <span>{p.name}</span>
-                    <span className="text-[10px] text-neutral-500">
-                      ({p.id})
-                    </span>
+                    <span className="text-[10px] text-neutral-500">({p.id})</span>
                     {locked && (
                       <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-[2px] font-bold uppercase tracking-wide">
                         LOCKED

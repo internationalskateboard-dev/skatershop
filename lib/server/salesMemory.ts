@@ -1,15 +1,8 @@
 // lib/server/salesMemory.ts
 import type { SaleRecord } from "@/lib/types";
 
-/**
- * “DB” en memoria para las ventas.
- * Vive solo mientras el server está levantado.
- */
 export const salesMemory: SaleRecord[] = [];
 
-/**
- * Añade una venta a la memoria.
- */
 export function addSaleToMemory(
   sale: Omit<SaleRecord, "id" | "createdAt">
 ): SaleRecord {
@@ -22,10 +15,10 @@ export function addSaleToMemory(
   return full;
 }
 
-/**
- * Borra una venta de la memoria por id.
- * Devuelve true si la encontró.
- */
+export function getSaleFromMemory(id: string): SaleRecord | null {
+  return salesMemory.find((s) => s.id === id) ?? null;
+}
+
 export function removeSaleFromMemory(id: string): boolean {
   const idx = salesMemory.findIndex((s) => s.id === id);
   if (idx === -1) return false;

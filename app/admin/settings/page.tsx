@@ -1,4 +1,3 @@
-// app/admin/settings/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,21 +10,32 @@ import useProductStore from "@/store/productStore";
 import type { Product, ProductsApiResponse } from "@/lib/types";
 
 export default function AdminSettingsPage() {
-  const { source, setSource, mode, setMode, lastError } = useAdminDataSource();
+  const {
+    source,
+    setSource,
+    mode,
+    setMode,
+    lastError,
+  } = useAdminDataSource();
+
   const { addProduct, updateProduct } = useProductStore();
 
   const [adminKey, setAdminKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
 
+  // cargar clave actual
   useEffect(() => {
-    const k = typeof window !== "undefined" ? localStorage.getItem(LS_ADMIN_KEY) : "";
+    const k =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem(LS_ADMIN_KEY)
+        : "";
     setAdminKey(k || DEFAULT_ADMIN_KEY);
   }, []);
 
   function handleSaveKey() {
     if (typeof window !== "undefined") {
-      localStorage.setItem(LS_ADMIN_KEY, adminKey || DEFAULT_ADMIN_KEY);
+      window.localStorage.setItem(LS_ADMIN_KEY, adminKey || DEFAULT_ADMIN_KEY);
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -38,11 +48,13 @@ export default function AdminSettingsPage() {
       const data = (await res.json()) as ProductsApiResponse;
       const list = data.products || [];
 
+      // los metemos en el store
       list.forEach((p: Product) => updateProduct(p.id, p));
       list.forEach((p: Product) => addProduct(p));
 
       setSeedMsg(`Se cargaron ${list.length} productos desde la API ✅`);
     } catch (err) {
+      console.warn("[AdminSettings] seed products error", err);
       setSeedMsg("No se pudieron cargar productos desde la API ❌");
     } finally {
       setTimeout(() => setSeedMsg(null), 3000);
@@ -52,17 +64,18 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Ajustes del panel</h1>
+        <h1 className="text-2xl font-bold text-white">Ajustes del panel</h1>
         <p className="text-sm text-neutral-400">
-          Controla la fuente de datos, el modo de trabajo y carga datos de ejemplo.
+          Controla la fuente de datos, el modo de trabajo y la clave del administrador.
         </p>
       </div>
 
       {/* Modo de datos */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold">Modo de datos</h2>
+        <h2 className="text-lg font-semibold text-white">Modo de datos</h2>
         <p className="text-sm text-neutral-400">
-          Automático intenta API y cae a local. Forzado usa siempre la fuente que elijas abajo.
+          En <b>automático</b> el panel intenta usar la API y, si falla, cambia a local.
+          En <b>forzado</b> usará siempre la fuente que elijas abajo.
         </p>
         <div className="flex gap-3">
           <button
@@ -91,7 +104,7 @@ export default function AdminSettingsPage() {
 
       {/* Fuente de datos */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold">Fuente de datos</h2>
+        <h2 className="text-lg font-semibold text-white">Fuente de datos</h2>
         <p className="text-sm text-neutral-400">
           Solo puedes cambiar la fuente cuando el modo es forzado.
         </p>
@@ -119,11 +132,9 @@ export default function AdminSettingsPage() {
             Local (Zustand)
           </button>
         </div>
-        <p className="text-xs text-neutral-500">
-          Fuente actual: <code>{source}</code>
-        </p>
+        <p className="text-xs text-neutral-500">Fuente actual: {source}</p>
         {lastError ? (
-          <p className="text-xs text-red-400">
+          <p className="text-xs text-red-400 mt-1">
             Último error de API: <span className="font-mono">{lastError}</span>
           </p>
         ) : null}
@@ -131,7 +142,7 @@ export default function AdminSettingsPage() {
 
       {/* Clave de admin */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold">Clave de administrador</h2>
+        <h2 className="text-lg font-semibold text-white">Clave de administrador</h2>
         <p className="text-sm text-neutral-400">
           Esta clave se guarda en este navegador y la usa el login del admin.
         </p>
@@ -151,7 +162,7 @@ export default function AdminSettingsPage() {
 
       {/* Cargar productos */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold">Datos de ejemplo</h2>
+        <h2 className="text-lg font-semibold text-white">Datos de ejemplo</h2>
         <p className="text-sm text-neutral-400">
           Carga en tu store local los productos que haya ahora mismo en /api/products.
         </p>

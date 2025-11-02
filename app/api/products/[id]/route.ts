@@ -10,16 +10,20 @@ type Params = {
   params: { id: string };
 };
 
+// GET /api/products/:id
 export async function GET(_req: Request, { params }: Params) {
-  const product = getProductFromMemory(params.id);
+  const { id } = params;
+  const product = getProductFromMemory(id);
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
   return NextResponse.json(product as Product);
 }
 
+// DELETE /api/products/:id
 export async function DELETE(_req: Request, { params }: Params) {
-  const ok = removeProductFromMemory(params.id);
+  const { id } = params;
+  const ok = removeProductFromMemory(id);
   if (!ok) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }

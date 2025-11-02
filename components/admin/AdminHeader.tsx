@@ -17,10 +17,8 @@ export default function AdminHeader() {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* estado de modo */}
         <span
-          className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border
-          ${
+          className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${
             mode === "auto"
               ? "bg-neutral-900 border-neutral-700 text-neutral-200"
               : "bg-amber-400/10 border-amber-400/50 text-amber-100"
@@ -29,10 +27,8 @@ export default function AdminHeader() {
           modo: {mode}
         </span>
 
-        {/* fuente actual */}
         <span
-          className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border
-          ${
+          className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${
             source === "api"
               ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-100"
               : "bg-sky-500/10 border-sky-500/50 text-sky-100"
@@ -42,8 +38,8 @@ export default function AdminHeader() {
         </span>
 
         {lastError ? (
-          <span className="px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border border-red-500/60 bg-red-500/10 text-red-100 max-w-[180px] truncate">
-            API error
+          <span className="px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border border-red-500/60 bg-red-500/10 text-red-100 max-w-[200px] truncate">
+            {lastError}
           </span>
         ) : null}
 
