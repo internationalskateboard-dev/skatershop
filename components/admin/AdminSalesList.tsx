@@ -1,143 +1,215 @@
 // components/admin/AdminSalesList.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import useSalesStore from "@/store/salesStore";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { downloadSalesCsv } from "@/lib/admin/exportCsv";
 import type { SaleRecord } from "@/lib/types";
-import { useAdminDataSource } from "./AdminDataSourceContext";
 
 export default function AdminSalesList() {
-  const localSales = useSalesStore((s) => s.sales);
   const [sales, setSales] = useState<SaleRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const { setSource, setLastError } = useAdminDataSource();
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [productFilter, setProductFilter] = useState("");
 
-  // cargar ventas
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setLastError(null);
-      try {
-        const res = await fetch("/api/sales", { method: "GET" });
-        if (!res.ok) throw new Error("No se pudo obtener ventas");
-        const data = await res.json();
-        const fromApi = Array.isArray(data.sales) ? data.sales : [];
-        if (!cancelled) {
-          setSales(fromApi);
-          setSource("api");
-        }
-      } catch (err: unknown) {
-        console.warn("[AdminSalesList] usando ventas locales:", err);
-        if (!cancelled) {
-          setSales(localSales);
-          setSource("local");
-          setLastError("No se pudo leer ventas desde la API.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [localSales, setSource, setLastError]);
-
-  async function handleDeleteSale(sale: SaleRecord) {
-    const ok = window.confirm(
-      `¿Borrar la venta ${sale.id}? Esto es solo para limpiar pruebas.`
-    );
-    if (!ok) return;
-
+  const loadSales = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/sales/${sale.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error("DELETE /api/sales/:id falló");
+      const res = await fetch("/api/sales");
+      if (!res.ok) throw new Error("No se pudo cargar /api/sales");
+      const data = (await res.json()) as { sales: SaleRecord[] } | SaleRecord[];
+      // soportar tanto { sales: [] } como [] a pelo
+      const list = Array.isArray(data) ? data : data.sales;
+      setSales(list || []);
+    } catch (err: any) {
+      console.warn("[AdminSalesList] no se pudo leer /api/sales", err);
+      setSales([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSales();
+  }, [loadSales]);
+
+  const filteredSales = useMemo(() => {
+    return sales.filter((s) => {
+      if (dateFrom) {
+        const dFrom = new Date(dateFrom);
+        const dCreated = new Date(s.createdAt);
+        if (dCreated < dFrom) return false;
       }
-      setSales((prev) => prev.filter((s) => s.id !== sale.id));
+      if (dateTo) {
+        const dTo = new Date(dateTo);
+        const dCreated = new Date(s.createdAt);
+        dTo.setHours(23, 59, 59, 999);
+        if (dCreated > dTo) return false;
+      }
+      if (productFilter.trim()) {
+        const pf = productFilter.trim().toLowerCase();
+        const hasProduct = (s.items || []).some((it) =>
+          (it.productId || "").toLowerCase().includes(pf)
+        );
+        if (!hasProduct) return false;
+      }
+      return true;
+    });
+  }, [sales, dateFrom, dateTo, productFilter]);
+
+  function handleExportCsv() {
+    downloadSalesCsv(filteredSales, "ventas-filtradas.csv");
+  }
+
+  async function handleDelete(id: string) {
+    const ok = confirm("¿Borrar esta venta?");
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setSales((prev) => prev.filter((s) => s.id !== id));
+      } else {
+        alert("No se pudo borrar");
+      }
     } catch (err) {
-      console.warn("[AdminSalesList] no se pudo borrar en API, borrando local", err);
-      useSalesStore.setState((state) => ({
-        sales: state.sales.filter((s) => s.id !== sale.id),
-      }));
-      setSales((prev) => prev.filter((s) => s.id !== sale.id));
-      setSource("local");
-      setLastError("No se pudo borrar en API, se borró localmente.");
+      alert("No se pudo borrar");
     }
   }
 
   return (
-    <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl font-display font-bold">Ventas</h2>
+    <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-white">Ventas</h2>
+          <p className="text-xs text-neutral-400">
+            Filtra por fecha o por producto y exporta solo lo que ves.
+          </p>
+        </div>
+        <button
+          onClick={handleExportCsv}
+          className="bg-yellow-400 text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-yellow-300 transition"
+        >
+          Exportar CSV (filtrado)
+        </button>
       </div>
 
-      {sales.length === 0 ? (
-        <p className="text-neutral-500 text-sm">
-          {loading ? "Cargando ventas..." : "No hay ventas registradas."}
-        </p>
-      ) : (
-        <div className="overflow-x-auto -mx-3 md:mx-0">
-          <table className="min-w-full text-sm text-left text-neutral-200">
-            <thead>
-              <tr className="border-b border-neutral-800 text-xs uppercase text-neutral-500">
-                <th className="py-2 px-3">ID</th>
-                <th className="py-2 px-3">Fecha</th>
-                <th className="py-2 px-3">Cliente</th>
-                <th className="py-2 px-3">Items</th>
-                <th className="py-2 px-3 text-right">Total</th>
-                <th className="py-2 px-3 text-right">Acciones</th>
+      {/* filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div>
+          <label className="text-[11px] text-neutral-400 block mb-1">Desde</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white outline-none focus:border-yellow-400"
+          />
+        </div>
+        <div>
+          <label className="text-[11px] text-neutral-400 block mb-1">Hasta</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white outline-none focus:border-yellow-400"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-[11px] text-neutral-400 block mb-1">
+            Producto (ID contiene)
+          </label>
+          <input
+            value={productFilter}
+            onChange={(e) => setProductFilter(e.target.value)}
+            placeholder="deck, hoodie, wheels..."
+            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white outline-none focus:border-yellow-400"
+          />
+        </div>
+      </div>
+
+      {/* tabla */}
+      <div className="rounded-lg border border-neutral-800 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-neutral-950/40">
+            <tr>
+              <th className="text-left px-3 py-2 text-xs text-neutral-400">ID</th>
+              <th className="text-left px-3 py-2 text-xs text-neutral-400">Fecha</th>
+              <th className="text-left px-3 py-2 text-xs text-neutral-400">Items</th>
+              <th className="text-left px-3 py-2 text-xs text-neutral-400">Cliente</th>
+              <th className="text-left px-3 py-2 text-xs text-neutral-400">Total</th>
+              <th className="text-right px-3 py-2 text-xs text-neutral-400">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-3 py-6 text-center text-neutral-500 text-sm"
+                >
+                  Cargando ventas…
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {sales.map((s) => (
-                <tr key={s.id} className="border-b border-neutral-800/50">
-                  <td className="py-2 px-3 text-xs text-neutral-400">
-                    {s.id}
+            ) : filteredSales.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-3 py-6 text-center text-neutral-500 text-sm"
+                >
+                  No hay ventas que coincidan con el filtro.
+                </td>
+              </tr>
+            ) : (
+              filteredSales.map((s) => (
+                <tr key={s.id} className="border-t border-neutral-800">
+                  <td className="px-3 py-2 text-xs font-mono text-neutral-200">{s.id}</td>
+                  <td className="px-3 py-2 text-neutral-200 text-xs">
+                    {new Date(s.createdAt).toLocaleString("es-ES", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
                   </td>
-                  <td className="py-2 px-3 text-xs">
-                    {new Date(s.createdAt).toLocaleString()}
+                  <td className="px-3 py-2 text-neutral-200 text-xs">
+                    <ul className="space-y-0.5">
+                      {s.items?.map((it, idx) => (
+                        <li key={idx}>
+                          <span className="font-mono">{it.productId}</span> ×{it.qty}{" "}
+                          {it.size ? `(${it.size})` : ""}
+                        </li>
+                      ))}
+                    </ul>
                   </td>
-                  <td className="py-2 px-3 text-xs">
-                    {s.customer?.fullName || "—"}
-                    {s.customer?.email ? ` · ${s.customer.email}` : ""}
+                  <td className="px-3 py-2 text-neutral-200 text-xs">
+                    {s.customer?.fullName ? (
+                      <>
+                        <div>{s.customer.fullName}</div>
+                        {s.customer.email ? (
+                          <div className="text-[10px] text-neutral-500">
+                            {s.customer.email}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-neutral-500">—</span>
+                    )}
                   </td>
-                  <td className="py-2 px-3 text-xs">
-                    {s.items
-                      .map(
-                        (it) =>
-                          `${it.productId} x${it.qty}${
-                            it.size ? ` (${it.size})` : ""
-                          }`
-                      )
-                      .join(", ")}
+                  <td className="px-3 py-2 text-neutral-100 text-sm font-semibold">
+                    € {s.total.toFixed(2)}
                   </td>
-                  <td className="py-2 px-3 text-right text-yellow-400 font-semibold">
-                    €{(s.total ?? 0).toFixed(2)}
-                  </td>
-                  <td className="py-2 px-3 text-right">
+                  <td className="px-3 py-2 text-right">
                     <button
-                      onClick={() => handleDeleteSale(s)}
-                      className="text-[11px] bg-red-500/20 text-red-300 border border-red-500/40 rounded-md px-3 py-1 hover:bg-red-500/30 transition"
+                      onClick={() => handleDelete(s.id)}
+                      className="text-[11px] text-red-300 hover:text-red-200"
                     >
                       Borrar
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
