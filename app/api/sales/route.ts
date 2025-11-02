@@ -2,15 +2,18 @@
 import { NextResponse } from "next/server";
 import type { SaleRecord, SalesApiResponse } from "@/lib/types";
 import {
-  addSaleToMemory,
+   addSaleToMemory,
   listSalesFromMemory,
 } from "@/lib/server/salesMemory";
 import { fetchJsonOrNull } from "@/lib/server/dataSource";
+import { salesBase } from "@/lib/salesBase";
 
 // GET /api/sales
 export async function GET() {
   const externalUrl = process.env.SKATERSHOP_SALES_URL;
   const external = await fetchJsonOrNull(externalUrl);
+
+  // console.log("Url: "+process.env.SKATERSHOP_SALES_URL);
 
   // { sales: [...] }
   if (external && Array.isArray((external as any).sales)) {
@@ -29,8 +32,17 @@ export async function GET() {
   }
 
   // fallback a memoria
-  const sales = listSalesFromMemory();
-  const payload: SalesApiResponse = { sales };
+  // const sales = listSalesFromMemory();
+  // const payload: SalesApiResponse = { sales };
+
+  // const sales = listSalesFromMemory();
+    // si quieres, aquí puedes mezclar con las seeds:
+  // import { getSalesBase } from "@/lib/salesBase";
+ const sales = [...listSalesFromMemory(), ...salesBase];
+
+  const payload: SalesApiResponse = { 
+    sales,
+   };
   return NextResponse.json(payload);
 }
 

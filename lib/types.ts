@@ -14,7 +14,8 @@
  * Variante de color opcional para un producto.
  * La estamos generando en el admin a partir de un campo de texto
  * “Negro,Blanco,Rojo” + una imagen por cada color.
- */export type ProductColor = {
+ */
+export type ProductColor = {
   name: string;
   image?: string; // puede venir vacío si no subieron imagen para ese color
 };

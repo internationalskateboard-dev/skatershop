@@ -19,16 +19,7 @@ export const productsBase: Product[] = [
     sizes: ["S", "M", "L", "XL"],
     stock: 10,
   },
-  {
-    id: "tee-skater",
-    name: "Tee Skater",
-    price: 24.5,
-    desc: "Camiseta blanca con print skater.",
-    details: "100% algodón, corte recto.",
-    image: "/images/gorra_gris.jpg",
-    sizes: ["M", "L"],
-    stock: 15,
-  },
+  
   {
     id: "cap-yellow",
     name: "Gorra Yellow",

@@ -1,10 +1,14 @@
 {
   "mock-products": [
     {
-      "id": "deck-1",
-      "name": "Tabla Street 8.0",
-      "price": 65,
-      "stock": 12
+    "id": "hoodie-black",
+    "name": "Hoodie Black",
+    "price": 39.9,
+    "desc": "Hoodie negro oversize con logo.",
+    "details": "Algodón 450gsm, fit relajado.",
+    "image": "/images/hoodie-black.jpg",
+    "sizes": ["S", "M", "L", "XL"],
+    "stock": 10
     },
     {
       "id": "deck-2",
@@ -21,11 +25,25 @@
   ],
   "mock-sales": [
     {
-      "id": "sale-1",
-      "productId": "deck-1",
-      "quantity": 1,
-      "total": 65,
-      "date": "2025-11-02T10:00:00Z"
+      "id": "sale-seed-1",
+    "createdAt": "2025/11/02",
+    "items": [
+      {        
+        "productId": "hoodie-black",
+        "qty": 1
+      }
+    ],
+    "total": 39.9,
+    "customer": {
+      "fullName": "Cliente Demo",
+      "email": "demo@example.com",
+      "country": "ES",
+      "city": "Madrid",
+      "adresse": "Calle Falsa 123",
+      "zip": "28001",
+      "phone": "+34 600 000 000"
+    }
+
     }
   ]
 }

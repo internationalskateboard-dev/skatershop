@@ -17,6 +17,7 @@ import { productsBase } from "./productsBase";
 import type { Product } from "./types";
 
 export default function useMergedProducts() {
+  
   const adminProducts = useProductStore((s) => s.products);
 
   const products: Product[] = useMemo(() => {
