@@ -1,0 +1,31 @@
+{
+  "mock-products": [
+    {
+      "id": "deck-1",
+      "name": "Tabla Street 8.0",
+      "price": 65,
+      "stock": 12
+    },
+    {
+      "id": "deck-2",
+      "name": "Tabla Pool 8.5",
+      "price": 72,
+      "stock": 5
+    },
+    {
+      "id": "deck-3",
+      "name": "Tabla Street 3.0",
+      "price": 5,
+      "stock": 17
+    }
+  ],
+  "mock-sales": [
+    {
+      "id": "sale-1",
+      "productId": "deck-1",
+      "quantity": 1,
+      "total": 65,
+      "date": "2025-11-02T10:00:00Z"
+    }
+  ]
+}
