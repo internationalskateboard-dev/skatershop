@@ -33,7 +33,7 @@ Thumbs.db
 
 # Env
 .env
-.env.local
+#.env.local
 .env.*.local
 
 # Coverage / pruebas
@@ -51,3 +51,4 @@ public/images/sueter_azul.png
 public/images/sueter_gris.png
 *.txt
 *.md
+*.zip
