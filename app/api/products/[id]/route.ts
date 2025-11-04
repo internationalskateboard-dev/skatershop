@@ -1,5 +1,5 @@
 // app/api/products/[id]/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import type { Product } from "@/lib/types";
 import {
   getProductFromMemory,
@@ -8,12 +8,13 @@ import {
 
 // GET /api/products/:id
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
-  const product = getProductFromMemory(id);
+  // Según el tipo que exige Next, params es un Promise
+  const { id } = await params;
 
+  const product = getProductFromMemory(id);
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
@@ -23,12 +24,12 @@ export async function GET(
 
 // DELETE /api/products/:id
 export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
-  const ok = removeProductFromMemory(id);
+  const { id } = await params;
 
+  const ok = removeProductFromMemory(id);
   if (!ok) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
