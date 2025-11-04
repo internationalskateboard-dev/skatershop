@@ -20,7 +20,7 @@ import type { SaleRecord } from "./types";
 export const salesBase: SaleRecord[] = [
   {
     id: "sale-seed-1",
-    createdAt: "2025/11/02",
+    createdAt: "2024/11/23",
     items: [
       {
         // existe en lib/productsBase.ts
@@ -30,7 +30,7 @@ export const salesBase: SaleRecord[] = [
     ],
     total: 39.9,
     customer: {
-      fullName: "Cliente Demo",
+      fullName: "Cliente Demo Local",
       email: "demo@example.com",
       country: "ES",
       city: "Madrid",
@@ -41,7 +41,7 @@ export const salesBase: SaleRecord[] = [
   },
   {
     id: "sale-seed-2",
-    createdAt: "2025-11-02",
+    createdAt: "2025-07-10",
     items: [
       {
         // también existe en lib/productsBase.ts

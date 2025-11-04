@@ -31,6 +31,7 @@ export type Product = {
   stock?: number; // opcional porque los productos base pueden no traerlo
   colors?: ProductColor[];
   sizeGuide?: string; // texto multilinea con medidas
+  isClothing: boolean // Indica si el producto es ropa o no
 };
 
 /**

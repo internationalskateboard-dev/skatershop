@@ -8,19 +8,22 @@
     "details": "Algodón 450gsm, fit relajado.",
     "image": "/images/hoodie-black.jpg",
     "sizes": ["S", "M", "L", "XL"],
-    "stock": 10
+    "stock": 10,
+    "isClothing": true
     },
     {
-      "id": "deck-2",
+      "id": "test-2-Api",
       "name": "Tabla Pool 8.5",
       "price": 72,
-      "stock": 5
+      "stock": 5,
+      "isClothing": true
     },
     {
-      "id": "deck-3",
+      "id": "deck-3-Api",
       "name": "Tabla Street 3.0",
       "price": 5,
-      "stock": 17
+      "stock": 17,
+      "isClothing": false
     }
   ],
   "mock-sales": [

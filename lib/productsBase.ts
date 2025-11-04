@@ -18,6 +18,7 @@ export const productsBase: Product[] = [
     image: "/images/hoodie-black.jpg",
     sizes: ["S", "M", "L", "XL"],
     stock: 10,
+    isClothing: true
   },
   
   {
@@ -29,5 +30,6 @@ export const productsBase: Product[] = [
     image: "/images/cap-classic.jpg",
     sizes: ["ONE SIZE"],
     stock: 5,
+    isClothing: true
   },
 ];

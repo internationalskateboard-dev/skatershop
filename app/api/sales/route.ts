@@ -2,86 +2,60 @@
 import { NextResponse } from "next/server";
 import type { SaleRecord, SalesApiResponse } from "@/lib/types";
 import {
-   addSaleToMemory,
+  addSaleToMemory,
   listSalesFromMemory,
 } from "@/lib/server/salesMemory";
 import { fetchJsonOrNull } from "@/lib/server/dataSource";
-import { salesBase } from "@/lib/salesBase";
+import { salesBase } from "@/lib/salesBase"; // ✅ <-- este es el bueno
 
-// GET /api/sales
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const forcedSource = url.searchParams.get("source"); // "api" | "local" | null
+
   const externalUrl = process.env.SKATERSHOP_SALES_URL;
+
+  // --- 1) FORZADO A API ---
+  if (forcedSource === "api") {
+    const external = await fetchJsonOrNull(externalUrl);
+
+    if (external && Array.isArray((external as any).sales)) {
+      return NextResponse.json({
+        sales: (external as any).sales as SaleRecord[],
+      } satisfies SalesApiResponse);
+    }
+    if (external && Array.isArray(external)) {
+      return NextResponse.json({
+        sales: external as SaleRecord[],
+      } satisfies SalesApiResponse);
+    }
+
+    // si no hay API pero pidieron API → devolvemos local
+    const localSales = [...listSalesFromMemory(), ...salesBase];
+    return NextResponse.json({ sales: localSales } satisfies SalesApiResponse);
+  }
+
+  // --- 2) FORZADO A LOCAL ---
+  if (forcedSource === "local") {
+    const localSales = [...listSalesFromMemory(), ...salesBase];
+    return NextResponse.json({ sales: localSales } satisfies SalesApiResponse);
+  }
+
+  // --- 3) AUTO (el de siempre) ---
   const external = await fetchJsonOrNull(externalUrl);
 
-  // console.log("Url: "+process.env.SKATERSHOP_SALES_URL);
-
-  // { sales: [...] }
   if (external && Array.isArray((external as any).sales)) {
-    const payload: SalesApiResponse = {
+    return NextResponse.json({
       sales: (external as any).sales as SaleRecord[],
-    };
-    return NextResponse.json(payload);
+    } satisfies SalesApiResponse);
   }
 
-  // [ ... ]
   if (external && Array.isArray(external)) {
-    const payload: SalesApiResponse = {
+    return NextResponse.json({
       sales: external as SaleRecord[],
-    };
-    return NextResponse.json(payload);
+    } satisfies SalesApiResponse);
   }
 
-  // fallback a memoria
-  // const sales = listSalesFromMemory();
-  // const payload: SalesApiResponse = { sales };
-
-  // const sales = listSalesFromMemory();
-    // si quieres, aquí puedes mezclar con las seeds:
-  // import { getSalesBase } from "@/lib/salesBase";
- const sales = [...listSalesFromMemory(), ...salesBase];
-
-  const payload: SalesApiResponse = { 
-    sales,
-   };
-  return NextResponse.json(payload);
-}
-
-// POST /api/sales
-export async function POST(req: Request) {
-  const body = (await req.json()) as Partial<SaleRecord>;
-
-  if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-    return NextResponse.json({ error: "Debe enviar items" }, { status: 400 });
-  }
-
-  // armamos venta local
-  const base: Omit<SaleRecord, "id" | "createdAt"> = {
-    items: body.items,
-    total: body.total ?? 0,
-    customer: body.customer ?? {},
-  };
-
-  // 1) guardamos SIEMPRE en memoria local
-  const savedLocal = addSaleToMemory(base);
-
-  // 2) si hay backend para POST, reenviamos (sin romper al admin si falla)
-  const externalPostUrl =
-    process.env.SKATERSHOP_SALES_URL_POST || process.env.SKATERSHOP_SALES_URL;
-
-  if (externalPostUrl) {
-    // no await → no bloqueamos la respuesta al admin
-    fetch(externalPostUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // enviamos la venta completa ya con id y createdAt
-      body: JSON.stringify(savedLocal),
-    }).catch((err) => {
-      console.warn(
-        "[/api/sales] no se pudo reenviar venta al backend remoto:",
-        err
-      );
-    });
-  }
-
-  return NextResponse.json(savedLocal, { status: 201 });
+  // fallback
+  const localSales = [...listSalesFromMemory(), ...salesBase];
+  return NextResponse.json({ sales: localSales } satisfies SalesApiResponse);
 }

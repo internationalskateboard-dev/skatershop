@@ -5,7 +5,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { downloadSalesCsv } from "@/lib/admin/exportCsv";
 import type { SaleRecord } from "@/lib/types";
 
-export default function AdminSalesList() {
+type AdminSalesListProps = {
+  /**
+   * Fuente de datos que quiere el admin.
+   * - "api"   → fuerza leer de la API (si falla, el servidor ya hará fallback)
+   * - "local" → fuerza leer de la fuente local (memoria + seeds)
+   * - "auto" o undefined → se comporta como ahora: /api/sales y que el backend resuelva
+   */
+  source?: "api" | "local" | "auto";
+};
+
+export default function AdminSalesList({ source = "auto" }: AdminSalesListProps) {
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,26 +23,38 @@ export default function AdminSalesList() {
   const [dateTo, setDateTo] = useState("");
   const [productFilter, setProductFilter] = useState("");
 
-  const loadSales = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/sales");
-      if (!res.ok) throw new Error("No se pudo cargar /api/sales");
-      const data = (await res.json()) as { sales: SaleRecord[] } | SaleRecord[];
-      // soportar tanto { sales: [] } como [] a pelo
-      const list = Array.isArray(data) ? data : data.sales;
-      setSales(list || []);
-    } catch (err: any) {
-      console.warn("[AdminSalesList] no se pudo leer /api/sales", err);
-      setSales([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadSales = useCallback(
+    async (currentSource: "api" | "local" | "auto") => {
+      setLoading(true);
+      try {
+        // 👇 aquí es donde vinculamos el selector de settings con la API
+        const qs =
+          currentSource === "auto"
+            ? ""
+            : currentSource === "api"
+            ? "?source=api"
+            : "?source=local";
 
+        const res = await fetch(`/api/sales${qs}`);
+        if (!res.ok) throw new Error("No se pudo cargar /api/sales");
+        const data = (await res.json()) as { sales: SaleRecord[] } | SaleRecord[];
+        // soportar tanto { sales: [] } como [] a pelo
+        const list = Array.isArray(data) ? data : data.sales;
+        setSales(list || []);
+      } catch (err: any) {
+        console.warn("[AdminSalesList] no se pudo leer /api/sales", err);
+        setSales([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // recarga cuando cambia la fuente
   useEffect(() => {
-    void loadSales();
-  }, [loadSales]);
+    void loadSales(source);
+  }, [loadSales, source]);
 
   const filteredSales = useMemo(() => {
     return sales.filter((s) => {
@@ -194,7 +216,7 @@ export default function AdminSalesList() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-neutral-100 text-sm font-semibold">
-                    € {s.total.toFixed(2)}
+                    € {Number(s.total ?? 0).toFixed(2)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <button

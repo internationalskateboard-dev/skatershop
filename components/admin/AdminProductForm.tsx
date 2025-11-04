@@ -38,8 +38,9 @@ export default function AdminProductForm({
     details: "",
     selectedSizes: ["S", "M", "L", "XL"] as string[],
     stock: "1",
-    colorsText: "Negro,Blanco",
+    colorsText: "",
     sizeGuide: "",
+    isClothing: false, // <- NUEVO
   });
 
   const [preview, setPreview] = useState<string>("");
@@ -80,6 +81,7 @@ export default function AdminProductForm({
         ? initialData.colors.map((c: any) => c.name).join(",")
         : "Negro,Blanco",
       sizeGuide: initialData.sizeGuide ?? "",
+      isClothing: Boolean(initialData.isClothing), // <- NUEVO: marcar si ya era ropa
     });
 
     if (initialData.colors?.length) {
@@ -219,6 +221,7 @@ export default function AdminProductForm({
       stock: parseInt(form.stock || "0", 10),
       colors,
       sizeGuide: form.sizeGuide.trim(),
+      isClothing: form.isClothing, // <- NUEVO: se guarda si es ropa o no
     };
 
     setSaving(true);
@@ -254,8 +257,9 @@ export default function AdminProductForm({
         details: "",
         selectedSizes: ["S", "M", "L", "XL"],
         stock: "1",
-        colorsText: "Negro,Blanco",
+        colorsText: "",
         sizeGuide: "",
+        isClothing: false, // <- IMPORTANTE: al guardar queda desmarcado
       });
       setPreview("");
       setColorImages([]);
@@ -339,68 +343,92 @@ export default function AdminProductForm({
           placeholder="Fit relajado, algodón pesado, 450gsm..."
         />
 
-        <div className="md:col-span-2">
-          <span className="text-neutral-300 text-sm block mb-2">
-            Tallas disponibles
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {DEFAULT_SIZE_OPTIONS.map((size) => {
-              const active = form.selectedSizes.includes(size);
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => toggleSize(size)}
-                  className={`px-3 py-1 rounded-lg text-sm font-semibold border transition ${
-                    active
-                      ? "bg-yellow-400 text-black border-yellow-400"
-                      : "border-neutral-700 text-neutral-300 hover:border-yellow-400 hover:text-yellow-400"
-                  }`}
-                >
-                  {size}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[11px] text-neutral-500 mt-2">
-            Si seleccionas <strong>ONE SIZE</strong>, se desactivarán todas las
-            demás.
-          </p>
+        {/* NUEVO: checkbox Ropa */}
+        <div className="md:col-span-2 flex items-center gap-2 mt-2">
+          <input
+            id="isClothing"
+            type="checkbox"
+            checked={form.isClothing}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, isClothing: e.target.checked }))
+            }
+            className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-yellow-400 focus:ring-yellow-400 focus:ring-offset-0"
+          />
+          <label
+            htmlFor="isClothing"
+            className="text-sm text-neutral-300 select-none"
+          >
+            Ropa
+          </label>
         </div>
 
-        <TextareaField
-          label="Guía / Medidas por talla (opcional)"
-          name="sizeGuide"
-          value={form.sizeGuide}
-          onChange={handleChangeTextField}
-          placeholder={`S: pecho 50cm, largo 70cm\nM: pecho 52cm, largo 72cm\nL: pecho 54cm, largo 74cm`}
-        />
+        {/* CAMPOS SOLO PARA ROPA */}
+        {form.isClothing && (
+          <>
+            <div className="md:col-span-2">
+              <span className="text-neutral-300 text-sm block mb-2">
+                Tallas disponibles
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {DEFAULT_SIZE_OPTIONS.map((size) => {
+                  const active = form.selectedSizes.includes(size);
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => toggleSize(size)}
+                      className={`px-3 py-1 rounded-lg text-sm font-semibold border transition ${
+                        active
+                          ? "bg-yellow-400 text-black border-yellow-400"
+                          : "border-neutral-700 text-neutral-300 hover:border-yellow-400 hover:text-yellow-400"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-neutral-500 mt-2">
+                Si seleccionas <strong>ONE SIZE</strong>, se desactivarán todas
+                las demás.
+              </p>
+            </div>
 
-        <InputField
-          label="Colores (separados por coma)"
-          name="colorsText"
-          value={form.colorsText}
-          onChange={handleChangeTextField}
-          placeholder="Negro,Blanco,Rojo"
-          className="md:col-span-2"
-        />
-
-        {form.colorsText
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean)
-          .map((colorName) => (
-            <ColorUploadField
-              key={colorName}
-              colorName={colorName}
-              currentImage={
-                colorImages.find((c) => c.name === colorName)?.image || ""
-              }
-              onSelectFile={(file: File) =>
-                handleColorImageUpload(colorName, file)
-              }
+            <TextareaField
+              label="Guía / Medidas por talla (opcional)"
+              name="sizeGuide"
+              value={form.sizeGuide}
+              onChange={handleChangeTextField}
+              placeholder={`S: pecho 50cm, largo 70cm\nM: pecho 52cm, largo 72cm\nL: pecho 54cm, largo 74cm`}
             />
-          ))}
+
+            <InputField
+              label="Colores (separados por coma)"
+              name="colorsText"
+              value={form.colorsText}
+              onChange={handleChangeTextField}
+              placeholder="Negro,Blanco,Rojo"
+              className="md:col-span-2"
+            />
+
+            {form.colorsText
+              .split(",")
+              .map((c) => c.trim())
+              .filter(Boolean)
+              .map((colorName) => (
+                <ColorUploadField
+                  key={colorName}
+                  colorName={colorName}
+                  currentImage={
+                    colorImages.find((c) => c.name === colorName)?.image || ""
+                  }
+                  onSelectFile={(file: File) =>
+                    handleColorImageUpload(colorName, file)
+                  }
+                />
+              ))}
+          </>
+        )}
 
         <div className="md:col-span-2 flex justify-end gap-3 items-center">
           <button

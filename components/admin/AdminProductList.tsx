@@ -13,11 +13,19 @@ import { downloadProductsCsv } from "@/lib/admin/exportProductsCsv";
 type AdminProductListProps = {
   onEdit?: (p: Product) => void;
   onClone?: (p: Product) => void;
+  /**
+   * Fuente que queremos usar en esta vista.
+   * - "api"   → fuerza /api/products?source=api
+   * - "local" → fuerza /api/products?source=local
+   * - "auto" o undefined → /api/products (que decida el backend)
+   */
+  source?: "api" | "local" | "auto";
 };
 
 export default function AdminProductList({
   onEdit,
   onClone,
+  source = "auto",
 }: AdminProductListProps) {
   const {
     products: localProducts,
@@ -29,10 +37,15 @@ export default function AdminProductList({
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
 
-  const { setSource, setLastError, reportApiSuccess, reportApiError } =
-    useAdminDataSource();
+  const {
+    setSource,
+    setLastError,
+    reportApiSuccess,
+    reportApiError,
+    // ojo: tu contexto NO tiene "mode" aquí, solo setters
+  } = useAdminDataSource();
 
-  // cargar productos al montar
+  // cargar productos al montar y cuando cambie la fuente pedida
   useEffect(() => {
     let cancelled = false;
 
@@ -40,22 +53,32 @@ export default function AdminProductList({
       setLoading(true);
       setLastError(null);
       try {
-        const res = await fetch("/api/products", { method: "GET" });
+        const qs =
+          source === "auto"
+            ? ""
+            : source === "api"
+            ? "?source=api"
+            : "?source=local";
+
+        const res = await fetch(`/api/products${qs}`, { method: "GET" });
         if (!res.ok) throw new Error("No se pudo leer /api/products");
         const data = await res.json();
         const apiProducts = (data.products || []) as Product[];
         if (!cancelled) {
           setProducts(apiProducts);
-          setSource("api");
+          // avisamos al contexto qué fuente terminó usándose
+          setSource(source === "auto" ? "api" : source);
           reportApiSuccess();
         }
       } catch (err: unknown) {
         console.warn("[AdminProductList] usando productos locales:", err);
         if (!cancelled) {
+          // si falla la API siempre tendremos los locales
           setProducts(localProducts);
           setSource("local");
-          setLastError("No se pudo leer productos desde la API.");
-          reportApiError("No se pudo leer productos desde la API.");
+          const msg = "No se pudo leer productos desde la API.";
+          setLastError(msg);
+          reportApiError(msg);
         }
       } finally {
         if (!cancelled) {
@@ -69,9 +92,16 @@ export default function AdminProductList({
     return () => {
       cancelled = true;
     };
-  }, [localProducts, setSource, setLastError, reportApiError, reportApiSuccess]);
+  }, [
+    localProducts,
+    setSource,
+    setLastError,
+    reportApiError,
+    reportApiSuccess,
+    source, // 👈 importante: recargar al cambiar fuente
+  ]);
 
-  // filtro por texto
+  // filtro por texto (sin cambios)
   const filteredProducts = useMemo(() => {
     if (!search.trim()) return products;
     const q = search.trim().toLowerCase();
@@ -144,7 +174,9 @@ export default function AdminProductList({
 
       {filteredProducts.length === 0 ? (
         <p className="text-neutral-500 text-sm">
-          {loading ? "Cargando productos..." : "No hay productos que coincidan con el filtro."}
+          {loading
+            ? "Cargando productos..."
+            : "No hay productos que coincidan con el filtro."}
         </p>
       ) : (
         <ul className="space-y-4">
