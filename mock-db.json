@@ -6,7 +6,7 @@
     "price": 39.9,
     "desc": "Hoodie negro oversize con logo.",
     "details": "Algodón 450gsm, fit relajado.",
-    "image": "/images/hoodie-black.jpg",
+    "image": "/images/sueter_azul.png",
     "sizes": ["S", "M", "L", "XL"],
     "stock": 10,
     "isClothing": true
@@ -16,6 +16,7 @@
       "name": "Tabla Pool 8.5",
       "price": 72,
       "stock": 5,
+      "image": "/images/gorra_azul.jpg",
       "isClothing": true
     },
     {
