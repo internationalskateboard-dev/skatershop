@@ -18,6 +18,7 @@ export type ProductState = {
   updateProduct: (id: string, data: Partial<Product>) => void;
   removeProduct: (id: string) => void;
   reduceStockBatch: (batch: { productId: string; qty: number }[]) => void;
+  findById: (id: string) => Product | undefined; //
 };
 
 const useProductStore = create<ProductState>()(
@@ -64,6 +65,12 @@ const useProductStore = create<ProductState>()(
           });
           return { products: updated };
         }),
+
+
+        // 
+      findById: (id) => {
+        return get().products.find((p) => p.id === id);
+      },
     }),
     {
       name: "skater-products",

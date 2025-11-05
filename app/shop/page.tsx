@@ -4,28 +4,48 @@
  * ShopPage
  * ------------------------------------------------------------
  * Página principal de la tienda / catálogo.
- *
- * ✅ Qué hace:
- * - Intenta cargar productos desde la API (/api/products)
- * - Si la API falla → usa los productos del store (Zustand)
- * - Siempre completa con los productos base (lib/productsBase)
- * - Muestra la fuente usada: API / Local / Base
- * - Renderiza las tarjetas con <ProductCard />
- * - Botón rápido al carrito
  */
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import ClientOnly from "@/components/layout/ClientOnly";
 import ProductCard from "@/components/ui/ProductCard";
 import useCartStore from "@/store/cartStore";
 import useMergedProducts from "@/lib/useMergedProducts";
+import {
+  AdminDataSourceProvider,
+  useAdminDataSource,
+} from "@/components/admin/AdminDataSourceContext";
 
+// Componente que Next usa como página
 export default function ShopPage() {
+  // Aquí SOLO envolvemos con el provider
+  return (
+    <AdminDataSourceProvider>
+      <ShopPageWithContext />
+    </AdminDataSourceProvider>
+  );
+}
+
+// Componente real que usa el contexto, productos, etc.
+function ShopPageWithContext() {
   // Estado global del carrito (Zustand)
   const cartCount = useCartStore((s) => s.countItems());
 
-  // Productos combinados: api → local → base
-  const { products, source, loading, error } = useMergedProducts();
+  // Productos combinados: base + admin
+  const { products } = useMergedProducts();
+
+  // Contexto de admin (fuente de datos, errores, etc.)
+  const { source, lastError } = useAdminDataSource();
+
+  // Estado local de carga para mostrar "Cargando..."
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Pequeño delay para que se vea el estado de carga
+    const t = setTimeout(() => setLoading(false), 400);
+    return () => clearTimeout(t);
+  }, [products]);
 
   return (
     <ClientOnly>
@@ -58,8 +78,8 @@ export default function ShopPage() {
                   ? "Local (Zustand)"
                   : "Base"}
               </span>
-              {error ? (
-                <span className="ml-2 text-red-400">{error}</span>
+              {lastError ? (
+                <span className="ml-2 text-red-400">{lastError}</span>
               ) : null}
             </p>
           </div>
