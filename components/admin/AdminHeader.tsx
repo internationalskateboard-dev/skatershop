@@ -8,7 +8,7 @@ export default function AdminHeader() {
   const { source, mode, lastError } = useAdminDataSource();
 
   return (
-    <header className="w-full flex items-center justify-between mb-6">
+    <header className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
       <div>
         <h1 className="text-lg font-semibold text-white">Panel de administración</h1>
         <p className="text-xs text-neutral-500">

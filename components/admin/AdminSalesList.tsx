@@ -151,7 +151,7 @@ export default function AdminSalesList({ source = "auto" }: AdminSalesListProps)
 
       {/* tabla */}
       <div className="rounded-lg border border-neutral-800 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-neutral-950/40">
             <tr>
               <th className="text-left px-3 py-2 text-xs text-neutral-400">ID</th>

@@ -22,11 +22,11 @@ export default function AdminStatusBar() {
           fuente: {source}
         </span>
         {lastError ? (
-          <span className="ml-auto text-[10px] text-red-200 truncate">
+          <span className="ml-auto text-[10px] text-red-200 truncate w-full sm:w-auto text-right">
             Último error API: {lastError}
           </span>
         ) : (
-          <span className="ml-auto text-[10px] text-neutral-500">API OK</span>
+          <span className="ml-auto text-[10px] text-neutral-500 w-full sm:w-auto text-right">API OK</span>
         )}
       </div>
     </div>

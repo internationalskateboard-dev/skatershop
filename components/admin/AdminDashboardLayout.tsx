@@ -60,7 +60,7 @@ export default function AdminDashboardLayout({
 }) {
   return (
     <AdminDataSourceProvider>
-      <div className="min-h-screen bg-neutral-950 text-white flex">
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col md:flex-row">
         <AdminSidebar />
         <main className="flex-1 p-6 overflow-y-auto">
           <AdminStatusBar />
