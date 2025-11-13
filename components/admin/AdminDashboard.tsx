@@ -114,8 +114,8 @@ export default function AdminDashboard() {
 
       {/* tarjetas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-neutral-900/70 border border-neutral-800 rounded-xl p-4">
-          <p className="text-xs text-neutral-400">Productos</p>
+        <div className="bg-neutral-900/70 border border-yellow-400 rounded-xl p-4 hover:border-yellow-500">
+          <p className="text-xs text-white">Productos</p>
           <p className="text-3xl font-bold text-white mt-1">
             {loading ? "…" : totalProducts}
           </p>
@@ -123,8 +123,8 @@ export default function AdminDashboard() {
             Productos cargados desde la fuente actual.
           </p>
         </div>
-        <div className="bg-neutral-900/70 border border-neutral-800 rounded-xl p-4">
-          <p className="text-xs text-neutral-400">Ventas</p>
+        <div className="bg-neutral-900/70 border border-yellow-400 rounded-xl p-4 hover:border-yellow-500">
+          <p className="text-xs text-white">Ventas</p>
           <p className="text-3xl font-bold text-white mt-1">
             {loading ? "…" : totalSales}
           </p>
@@ -132,9 +132,9 @@ export default function AdminDashboard() {
             Ventas cargadas desde la fuente actual.
           </p>
         </div>
-        <div className="bg-neutral-900/70 border border-neutral-800 rounded-xl p-4">
-          <p className="text-xs text-neutral-400">Ingresos estimados</p>
-          <p className="text-3xl font-bold text-white mt-1">
+        <div className="bg-neutral-900/70 border border-yellow-400 rounded-xl p-4 hover:border-yellow-500">
+          <p className="text-xs text-white">Ingresos estimados</p>
+          <p className="text-3xl font-bold text-green-500 mt-1">
             {loading ? "…" : `€ ${totalRevenue.toFixed(2)}`}
           </p>
           <p className="text-[11px] text-neutral-500 mt-2">
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
 
       {/* aquí puedes meter Últimas ventas o Productos sin stock */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-4">
+        <div className="bg-neutral-900/40 border border-yellow-400 rounded-xl p-4 hover:border-yellow-500">
           <h2 className="text-sm font-semibold text-white mb-3">
             Últimas ventas
           </h2>
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-4">
+        <div className="bg-neutral-900/40 border border-yellow-400 rounded-xl p-4 hover:border-yellow-500">
           <h2 className="text-sm font-semibold text-white mb-3">
             Productos sin stock
           </h2>

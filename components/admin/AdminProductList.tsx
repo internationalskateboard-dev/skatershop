@@ -192,7 +192,7 @@ export default function AdminProductList({
             return (
               <li
                 key={p.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-neutral-800 pb-4 gap-3"
+                className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-yellow-500 pb-4 gap-3"
               >
                 <div className="text-sm">
                   <p className="font-semibold text-white flex items-center gap-2 flex-wrap">

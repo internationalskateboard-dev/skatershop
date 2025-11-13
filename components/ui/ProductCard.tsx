@@ -58,48 +58,63 @@ export default function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <div className="border border-neutral-800 bg-neutral-900 rounded-2xl overflow-hidden shadow-md hover:shadow-yellow-400/20 transition duration-300 flex flex-col">
+    <article className="group relative flex flex-col overflow-hidden rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900 to-neutral-950 shadow-md hover:border-yellow-400/80 hover:shadow-[0_0_40px_rgba(250,204,21,0.25)] hover:-translate-y-[3px] transition-transform duration-300">
       {/* Imagen del producto */}
-      <div className="relative w-full aspect-square bg-neutral-950">
+      <div className="relative w-full aspect-[4/5] bg-neutral-950">
         <Image
           src={product.image || PRODUCT_PLACEHOLDER_IMAGE}
           alt={product.name}
           fill
-          className="object-cover"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
+        {/* Faja sutil en la parte inferior para dar contraste al texto */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
       </div>
 
       {/* Contenido */}
-      <div className="p-4 flex flex-col flex-grow justify-between gap-3">
+      <div className="flex flex-col gap-2.5 p-3.5 sm:p-4">
         <div>
-          <h3 className="text-lg font-semibold">{product.name}</h3>
+          <h3 className="text-sm sm:text-base font-semibold tracking-tight">
+            {product.name}
+          </h3>
+
           {product.desc ? (
-            <p className="text-neutral-400 text-sm mt-1 line-clamp-2">
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400 line-clamp-2">
               {product.desc}
             </p>
           ) : null}
-          <p className="text-yellow-400 font-bold mt-2">
+
+          {(hasSizes || hasSingleSize) && (
+            <p className="mt-2 text-[11px] uppercase tracking-wide text-neutral-500">
+              Tallas:{" "}
+              <span className="text-neutral-100">
+                {hasSizes ? "Varias tallas" : product.sizes![0]}
+              </span>
+            </p>
+          )}
+
+          <p className="mt-3 text-sm sm:text-base font-bold text-yellow-400">
             €{product.price.toFixed(2)}
           </p>
         </div>
 
         {/* Botones de acción */}
-        <div className="mt-2 flex justify-end gap-3">
+        <div className="mt-2 flex flex-col sm:flex-row gap-2">
           <Link
             href={`/products/${product.id}`}
-            className="text-xs font-bold bg-neutral-800 border border-neutral-700 px-4 py-2 rounded-lg hover:border-yellow-400 hover:text-yellow-400 transition"
+            className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-700 bg-neutral-900/70 px-4 py-2 text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-neutral-200 hover:border-yellow-400 hover:text-yellow-300 transition"
           >
             Ver
           </Link>
 
           <button
             onClick={handleAdd}
-            className="text-xs font-bold bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 active:scale-95 transition"
+            className="inline-flex flex-1 items-center justify-center rounded-full bg-yellow-400 px-4 py-2 text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-black shadow-lg shadow-yellow-400/40 hover:bg-yellow-300 active:scale-95 transition"
           >
             Añadir
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
