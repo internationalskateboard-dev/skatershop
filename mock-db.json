@@ -11,22 +11,55 @@
     "stock": 10,
     "isClothing": true
     },
+
+
     {
       "id": "test-2-Api",
-      "name": "Tabla Pool 8.5",
-      "price": 72,
-      "stock": 5,
+      "name": "Gorra Azul",
+      "price": 27.18,
+      "desc": "Descripcion Corta.",
+      "details": "Detalles del Producto.",
       "image": "/images/gorra_azul.jpg",
+      "sizes": ["ONE SIZE"],
+      "stock": 5,
       "isClothing": true
     },
+
+
     {
-      "id": "deck-3-Api",
+    "id": "3-Api",
+    "name": "test",
+    "price": 5.9,
+    "desc": "Descripcion.",
+    "details": "Detalles del Producto.",
+    "image": "/images/sueter_gris.png",
+    "sizes": ["S", "M", "L", "XL"],
+    "stock": 10,
+    "isClothing": true
+    },
+
+
+    {
+      "id": "deck-4-Api",
       "name": "Tabla Street 3.0",
       "price": 5,
+      "desc": "Descripcion.",
+      "details": "Detalles del Producto.",
+      "image": "",
+      "sizes": ["ONE SIZE"],
       "stock": 17,
-      "isClothing": false
+      "isClothing": true
     }
   ],
+
+
+
+
+
+
+
+
+
   "mock-sales": [
     {
       "id": "sale-seed-1",

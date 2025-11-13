@@ -66,33 +66,41 @@ const [quantity, setQuantity] = useState(1);
   };
 
   // cuando cambia el producto o el carrito → sincronizar estado local
-  useEffect(() => {
-    if (!product) return;
+useEffect(() => {
+  if (!product) return;
 
-    // al cambiar de producto, la cantidad vuelve a 1
+  // si tiene exactamente 1 talla → la dejamos ya marcada
+  if (Array.isArray(product.sizes) && product.sizes.length === 1) {
+    setSelectedSize(product.sizes[0]);
+  } else {
+    setSelectedSize(null);
+  }
+
+  const inCart = cart.find((i) => i.id === product.id);
+  if (inCart) {
+    setAdded(true);
+
+    // si en carrito había talla → también la traemos
+    if (inCart.size) {
+      setSelectedSize(inCart.size);
+    }
+
+    // sincronizar cantidad con la del carrito
+    if (typeof inCart.qty === "number") {
+      setQuantity(inCart.qty);
+    } else {
+      setQuantity(1);
+    }
+  } else {
+    setAdded(false);
+    // si no está en carrito, por defecto cantidad 1
     setQuantity(1);
+  }
 
-    // si tiene exactamente 1 talla → la dejamos ya marcada
-    if (Array.isArray(product.sizes) && product.sizes.length === 1) {
-      setSelectedSize(product.sizes[0]);
-    } else {
-      setSelectedSize(null);
-    }
+  // ocultar toast cuando cambie de producto
+  setToast((t) => ({ ...t, show: false }));
+}, [product, cart]);
 
-    const inCart = cart.find((i) => i.id === product.id);
-    if (inCart) {
-      setAdded(true);
-      // si en carrito había talla → también la traemos
-      if (inCart.size) {
-        setSelectedSize(inCart.size);
-      }
-    } else {
-      setAdded(false);
-    }
-
-    // ocultar toast cuando cambie de producto
-    setToast((t) => ({ ...t, show: false }));
-  }, [product, cart]);
 
   // si no se encontró el producto
   if (!product) {

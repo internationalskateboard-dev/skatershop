@@ -10,8 +10,8 @@ import { PRODUCT_PLACEHOLDER_IMAGE } from "./constants";
 
 export const productsBase: Product[] = [
   {
-    id: "hoodie-black",
-    name: "Hoodie Black",
+    id: "hoodie-black-Base",
+    name: "Hoodie Black Base",
     price: 39.9,
     desc: "Hoodie negro oversize con logo.",
     details: "Algodón 450gsm, fit relajado.",
@@ -22,8 +22,8 @@ export const productsBase: Product[] = [
   },
   
   {
-    id: "cap-yellow",
-    name: "Gorra Yellow",
+    id: "cap-yellow-Base",
+    name: "Gorra Yellow Base",
     price: 18,
     desc: "Gorra plana negra",
     details: "Visera rígida, talla única.",
