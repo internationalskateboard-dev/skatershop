@@ -18,18 +18,28 @@ export const productsBase: Product[] = [
     image: "/images/hoodie-black.jpg",
     sizes: ["S", "M", "L", "XL"],
     stock: 10,
+    colors: [ 
+      { name: "Black", image: "/images/hoodie-black.jpg" },
+      { name: "Blue", image: "/images/sueter_azul.png" }
+    ],
+    sizeGuide: "string",
     isClothing: true
   },
   
   {
     id: "cap-yellow-Base",
-    name: "Gorra Yellow Base",
+    name: "Gorra Black Base",
     price: 18,
     desc: "Gorra plana negra",
     details: "Visera rígida, talla única.",
     image: "/images/cap-classic.jpg",
     sizes: ["ONE SIZE"],
     stock: 5,
-    isClothing: true
+    colors: [ 
+      { name: "string", image: "string" },
+      { name: "string", image: "string" }
+    ],
+    sizeGuide: "string",
+    isClothing: false
   },
 ];

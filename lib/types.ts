@@ -47,6 +47,7 @@ export type CartItem = {
   qty: number;
   image?: string;
   size?: string;
+  colorName?: string;
 };
 
 /**
