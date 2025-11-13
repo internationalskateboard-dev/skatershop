@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import useMergedProducts from "@/lib/useMergedProducts";
@@ -26,6 +26,9 @@ import type { Product } from "@/lib/types";
 type ToastState = { show: boolean; kind: "success" | "error"; text: string };
 
 export default function ProductDetailPage() {
+
+  const router = useRouter();
+
   const params = useParams();
   // en Next 13/14 con app router, params.id puede venir como string o string[]
   const id = Array.isArray(params?.id) ? params.id[0] : (params?.id as string);
@@ -51,6 +54,11 @@ export default function ProductDetailPage() {
     kind: "success",
     text: "",
   });
+// 
+const [quantity, setQuantity] = useState(1);
+
+
+
 
   const showToast = (kind: ToastState["kind"], text: string, ms = 2200) => {
     setToast({ show: true, kind, text });
@@ -60,6 +68,9 @@ export default function ProductDetailPage() {
   // cuando cambia el producto o el carrito → sincronizar estado local
   useEffect(() => {
     if (!product) return;
+
+    // al cambiar de producto, la cantidad vuelve a 1
+    setQuantity(1);
 
     // si tiene exactamente 1 talla → la dejamos ya marcada
     if (Array.isArray(product.sizes) && product.sizes.length === 1) {
@@ -110,7 +121,19 @@ export default function ProductDetailPage() {
       showToast("success", "Talla cambiada en el carrito ✅");
     }
   };
+  
+  // Función para cambiar cantidad
+  const handleQuantityChange = (delta: number) => {
+    setQuantity((q) => {
+      const next = q + delta;
+      // mínimo 1, máximo 10 (puedes ajustar)
+      return Math.min(10, Math.max(1, next));
+    });
+  };
 
+
+
+  //
   const handleAddToCart = () => {
     // si tiene tallas pero no hay ninguna seleccionada
     if (hasSizes && !selectedSize) {
@@ -129,7 +152,7 @@ export default function ProductDetailPage() {
       id: product.id,
       name: product.name,
       price: product.price,
-      qty: 1,
+      qty: quantity,
       image: product.image || PRODUCT_PLACEHOLDER_IMAGE,
       size: chosenSize,
     });
@@ -140,6 +163,17 @@ export default function ProductDetailPage() {
 
   return (
     <div className="relative max-w-5xl mx-auto py-10 px-6 text-white grid md:grid-cols-2 gap-8">
+
+      <div className="md:col-span-2 mb-4">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/70 px-4 py-2 text-sm font-semibold text-neutral-100 hover:border-yellow-400 hover:text-yellow-300 active:scale-95 transition-all"
+          >
+          <span className="text-lg">←</span>
+          <span>Volver</span>
+        </button>
+      </div>
+
       {/* Imagen */}
       <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950">
         <Image
@@ -206,6 +240,31 @@ export default function ProductDetailPage() {
 
         {/* Acciones */}
         <div className="mt-6 flex flex-wrap gap-3 items-center">
+
+{/* Selector de cantidad */}
+          <div className="inline-flex items-center rounded-full border border-neutral-700 bg-neutral-900/80 px-3 py-2 text-sm">
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(-1)}
+              className="w-7 h-7 flex items-center justify-center rounded-full border border-neutral-700 hover:border-yellow-400 hover:text-yellow-300 transition"
+              aria-label="Disminuir cantidad"
+            >
+              −
+            </button>
+            <span className="mx-3 min-w-[1.5rem] text-center font-semibold">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(1)}
+              className="w-7 h-7 flex items-center justify-center rounded-full border border-neutral-700 hover:border-yellow-400 hover:text-yellow-300 transition"
+              aria-label="Aumentar cantidad"
+            >
+              +
+            </button>
+          </div>
+
+
           <button
             onClick={handleAddToCart}
             disabled={added && !hasSizes}
