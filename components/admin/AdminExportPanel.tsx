@@ -55,7 +55,7 @@ export default function AdminExportPanel() {
   }
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
+    <div className="bg-neutral-900 border border-yellow-400 rounded-xl p-4 space-y-3 hover:border-yellow-500">
       <div>
         <h2 className="text-sm font-semibold text-white">Exportaciones rápidas</h2>
         <p className="text-[11px] text-neutral-400">

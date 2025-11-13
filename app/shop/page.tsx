@@ -49,66 +49,71 @@ function ShopPageWithContext() {
 
   return (
     <ClientOnly>
-      <div className="text-white">
-        {/* Header de la tienda */}
-        <section className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-bold uppercase tracking-tight font-display">
-              Skater Shop
-            </h1>
-            <p className="text-neutral-400 max-w-md text-sm leading-relaxed">
-              Ropa inspirada en la calle, hecha para patinar. Drop limitado.
-            </p>
+      <div className="text-white bg-neutral-950 min-h-screen">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-6">
+          {/* Header de la tienda */}
+          <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight font-display">
+                Skater Shop
+              </h1>
+              <p className="text-neutral-300 max-w-md text-xs sm:text-sm leading-relaxed mt-1">
+                Ropa inspirada en la calle, hecha para patinar. Drop limitado.
+              </p>
 
-            {/* Fuente de productos */}
-            <p className="mt-2 text-[11px] text-neutral-500">
-              Fuente:{" "}
-              <span
-                className={
-                  source === "api"
-                    ? "text-green-400"
+              {/* Fuente de productos */}
+              <p className="mt-1 text-[11px] sm:text-xs text-neutral-500">
+                Fuente:{" "}
+                <span
+                  className={
+                    source === "api"
+                      ? "text-green-400"
+                      : source === "local"
+                      ? "text-yellow-400"
+                      : "text-neutral-300"
+                  }
+                >
+                  {source === "api"
+                    ? "API"
                     : source === "local"
-                    ? "text-yellow-400"
-                    : "text-neutral-300"
-                }
+                    ? "Local (Zustand)"
+                    : "Base"}
+                </span>
+                {lastError ? (
+                  <span className="ml-2 text-red-400">{lastError}</span>
+                ) : null}
+              </p>
+            </div>
+
+            {/* Acceso rápido al carrito */}
+            <div className="sm:self-auto">
+              <Link
+                href="/cart"
+                className="inline-flex items-center justify-center w-full sm:w-auto rounded-full bg-yellow-400/90 text-black font-semibold text-xs sm:text-sm px-4 py-2 shadow-lg shadow-yellow-400/30 hover:bg-yellow-300 transition"
               >
-                {source === "api"
-                  ? "API"
-                  : source === "local"
-                  ? "Local (Zustand)"
-                  : "Base"}
-              </span>
-              {lastError ? (
-                <span className="ml-2 text-red-400">{lastError}</span>
-              ) : null}
-            </p>
-          </div>
-
-          {/* Acceso rápido al carrito */}
-          <Link
-            href="/cart"
-            className="text-sm bg-yellow-400 text-black font-semibold py-2 px-4 rounded-xl hover:bg-yellow-300 transition"
-          >
-            🛒 Carrito ({cartCount})
-          </Link>
-        </section>
-
-        {/* Estados de carga / vacío / lista */}
-        {loading ? (
-          <p className="text-neutral-500 text-sm mt-10">
-            Cargando productos...
-          </p>
-        ) : products.length === 0 ? (
-          <p className="text-neutral-500 text-sm mt-10">
-            No hay productos disponibles todavía.
-          </p>
-        ) : (
-          <section className="grid md:grid-cols-2 gap-6 mt-4">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+                <span className="mr-2 text-sm">🛒</span>
+                <span>Carrito ({cartCount})</span>
+              </Link>
+            </div>
           </section>
-        )}
+
+          {/* Estados de carga / vacío / lista */}
+          {loading ? (
+            <p className="text-neutral-500 text-sm mt-6">
+              Cargando productos...
+            </p>
+          ) : products.length === 0 ? (
+            <p className="text-neutral-500 text-sm mt-6">
+              No hay productos disponibles todavía.
+            </p>
+          ) : (
+            <section className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {products.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </section>
+          )}
+        </main>
       </div>
     </ClientOnly>
   );
