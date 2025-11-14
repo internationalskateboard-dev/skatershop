@@ -67,15 +67,19 @@ function ShopPageWithContext() {
                 Fuente:{" "}
                 <span
                   className={
-                    source === "api"
+                    source === "db"
                       ? "text-green-400"
+                      : source === "api"
+                      ? "text-blue-400"
                       : source === "local"
                       ? "text-yellow-400"
                       : "text-neutral-300"
                   }
                 >
-                  {source === "api"
-                    ? "API"
+                  {source === "db"
+                    ? "BD (Prisma/Postgres)"
+                    : source === "api"
+                    ? "API externa"
                     : source === "local"
                     ? "Local (Zustand)"
                     : "Base"}

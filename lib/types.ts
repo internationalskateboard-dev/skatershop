@@ -20,7 +20,7 @@ export type ProductColor = {
   image?: string; // puede venir vacío si no subieron imagen para ese color
 };
 
-// Objeto fundamental del proyecto el Producto
+// Objeto fundamental del proyecto - El Producto
 export type Product = {
   id: string;
   name: string; // Nombre del producto.

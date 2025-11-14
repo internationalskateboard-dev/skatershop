@@ -321,6 +321,29 @@ export default function ProductDetailPage() {
               </pre>
             </div>
           ) : null}
+
+          {/* Cantidad Disponible por tallas */}
+          {hasSizes && (
+            <div className="mb-6 mt-4 flex items-center gap-2">
+              <span className="text-sm text-neutral-300 uppercase tracking-wide">
+                Disp:
+              </span>
+
+              <div className="flex items-center gap-1.5">
+               
+                Hacer Esta Parte
+              
+              </div>
+              
+            </div>
+          )}
+
+
+
+
+
+
+
         </div>
 
         {/* Acciones */}

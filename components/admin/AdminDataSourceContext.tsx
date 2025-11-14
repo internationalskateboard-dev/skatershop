@@ -12,7 +12,7 @@ import {
   LS_DATASOURCE_MODE,
 } from "@/lib/admin/constants";
 
-type DataSource = "api" | "local";
+type DataSource = "db" | "api" | "local";
 type DataSourceMode = "auto" | "force";
 
 type AdminDataSourceContextValue = {
@@ -31,16 +31,57 @@ type AdminDataSourceContextValue = {
   reportApiError: (msg: string) => void;
 };
 
-const AdminDataSourceContext = createContext<AdminDataSourceContextValue | null>(
-  null
-);
+// 🔹 Valor por defecto seguro (para cuando NO hay provider)
+const defaultValue: AdminDataSourceContextValue = {
+  source: "db",
+  mode: "auto",
+  lastError: null,
+  setSource: () => {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[AdminDataSourceContext] setSource llamado sin Provider, usando valor por defecto"
+      );
+    }
+  },
+  setMode: () => {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[AdminDataSourceContext] setMode llamado sin Provider, usando valor por defecto"
+      );
+    }
+  },
+  setLastError: () => {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[AdminDataSourceContext] setLastError llamado sin Provider, usando valor por defecto"
+      );
+    }
+  },
+  reportApiSuccess: () => {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[AdminDataSourceContext] reportApiSuccess llamado sin Provider"
+      );
+    }
+  },
+  reportApiError: () => {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[AdminDataSourceContext] reportApiError llamado sin Provider"
+      );
+    }
+  },
+};
+
+const AdminDataSourceContext =
+  createContext<AdminDataSourceContextValue>(defaultValue);
 
 export function AdminDataSourceProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [source, setSourceState] = useState<DataSource>("api");
+  const [source, setSourceState] = useState<DataSource>("db");
   const [mode, setModeState] = useState<DataSourceMode>("auto");
   const [lastError, setLastErrorState] = useState<string | null>(null);
 
@@ -53,11 +94,16 @@ export function AdminDataSourceProvider({
     const savedSource = window.localStorage.getItem(LS_DATASOURCE);
     const savedMode = window.localStorage.getItem(LS_DATASOURCE_MODE);
 
-    if (savedSource === "api" || savedSource === "local") {
-      setSourceState(savedSource);
+    if (
+      savedSource === "api" ||
+      savedSource === "local" ||
+      savedSource === "db"
+    ) {
+      setSourceState(savedSource as DataSource);
     }
+
     if (savedMode === "auto" || savedMode === "force") {
-      setModeState(savedMode);
+      setModeState(savedMode as DataSourceMode);
     }
   }, []);
 
@@ -66,12 +112,20 @@ export function AdminDataSourceProvider({
   //
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(LS_DATASOURCE, source);
+    try {
+      window.localStorage.setItem(LS_DATASOURCE, source);
+    } catch (err) {
+      console.warn("[AdminDataSourceContext] Error guardando source en LS", err);
+    }
   }, [source]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(LS_DATASOURCE_MODE, mode);
+    try {
+      window.localStorage.setItem(LS_DATASOURCE_MODE, mode);
+    } catch (err) {
+      console.warn("[AdminDataSourceContext] Error guardando mode en LS", err);
+    }
   }, [mode]);
 
   //
@@ -96,11 +150,10 @@ export function AdminDataSourceProvider({
     // Si la API responde, limpiamos error
     setLastErrorState(null);
 
-    // Si estamos en auto y alguien había forzado a local por error de API,
-    // podemos volver a API.
+    // En modo AUTO: volvemos a "db" (BD) como fuente principal
     setSourceState((prev) => {
       if (mode === "auto") {
-        return "api";
+        return "db";
       }
       return prev;
     });
@@ -110,7 +163,7 @@ export function AdminDataSourceProvider({
     (msg: string) => {
       setLastErrorState(msg);
 
-      // Solo en modo AUTO cambiamos de fuente
+      // Solo en modo AUTO cambiamos de fuente a local
       setSourceState((prev) => {
         if (mode === "auto") {
           return "local";
@@ -140,11 +193,7 @@ export function AdminDataSourceProvider({
 }
 
 export function useAdminDataSource() {
+  // 👇 Ya no lanzamos error, devolvemos siempre un contexto válido
   const ctx = useContext(AdminDataSourceContext);
-  if (!ctx) {
-    throw new Error(
-      "useAdminDataSource debe usarse dentro de <AdminDataSourceProvider>"
-    );
-  }
   return ctx;
 }

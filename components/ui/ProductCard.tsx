@@ -26,8 +26,24 @@ export default function ProductCard({ product }: { product: Product }) {
     Array.isArray(product.sizes) && product.sizes.length > 1;
   const hasSingleSize =
     Array.isArray(product.sizes) && product.sizes.length === 1;
+  const hasColor =
+    Array.isArray(product.colors) && product.colors.length > 1;
+  
+
+
+
+
 
   const handleAdd = () => {
+
+
+   // si Varios Colores Disponibles Te lleva a esoger un color
+    if (hasColor) {
+      router.push(`/products/${product.id}`);
+      return;
+    }
+
+
     // si tiene varias tallas → ir al detalle
     if (hasSizes) {
       router.push(`/products/${product.id}`);
@@ -46,6 +62,11 @@ export default function ProductCard({ product }: { product: Product }) {
       });
       return;
     }
+
+ 
+
+
+
 
     // si no tiene tallas → añadir normal
     addToCart({

@@ -52,3 +52,7 @@ public/images/gorra_gris.jpg
 *.txt
 *.md
 *.zip
+
+/generated/prisma
+
+/generated/prisma
