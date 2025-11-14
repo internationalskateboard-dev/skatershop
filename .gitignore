@@ -32,7 +32,7 @@ Thumbs.db
 !.vscode/settings.json
 
 # Env
-.env
+#.env
 #.env.local
 #.env.*.local
 
