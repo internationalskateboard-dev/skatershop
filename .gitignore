@@ -58,3 +58,4 @@ public/images/gorra_gris.jpg
 /generated/prisma
 
 /generated/prisma
+.env
