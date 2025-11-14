@@ -1,23 +1,22 @@
-// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model Product {
-  id         String   @id       // usamos el id string que ya tienes en Product
+  id         String   @id
   name       String
   price      Float
-  desc       String?  // description corta
-  details    String?  // description larga
+  desc       String?
+  details    String?
   image      String?
-  sizesJson  Json?    // string[] → lo guardamos como JSON
+  sizesJson  Json?
   stock      Int?
-  colorsJson Json?    // ProductColor[] → JSON
+  colorsJson Json?
   sizeGuide  String?
   isClothing Boolean
   createdAt  DateTime @default(now())
@@ -27,10 +26,7 @@ model Product {
 model Sale {
   id           String   @id @default(cuid())
   createdAt    DateTime @default(now())
-  itemsJson    Json     // SaleItem[]
+  itemsJson    Json
   total        Float
-  customerJson Json?    // Partial<CustomerInfo>
-
-  // Si más adelante quieres relacionarlo con Product,
-  // podrías crear tabla SaleItem y relaciones 1-n.
+  customerJson Json?
 }
