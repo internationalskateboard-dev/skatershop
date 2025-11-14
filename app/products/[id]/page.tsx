@@ -7,6 +7,7 @@
  * - Muestra imagen, nombre, detalles, precio
  * - Maneja tallas
  * - Sincroniza talla, cantidad y color con el carrito
+ * 
  */
 
 import { useEffect, useMemo, useState } from "react";
