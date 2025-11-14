@@ -11,9 +11,9 @@ import { mapDbProductToProduct } from "@/lib/server/mappers";
 // GET /api/products/:id
 export async function GET(
   _req: Request,
-  context: { params?: { id?: string } }
+  { params }: { params: { id: string } }
 ) {
-  const id = context.params?.id;
+  const { id } = params;
 
   if (!id) {
     return NextResponse.json(
@@ -52,9 +52,9 @@ export async function GET(
 // DELETE /api/products/:id
 export async function DELETE(
   _req: Request,
-  context: { params?: { id?: string } }
+  { params }: { params: { id: string } }
 ) {
-  const id = context.params?.id;
+  const { id } = params;
 
   if (!id) {
     return NextResponse.json(
