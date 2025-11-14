@@ -10,41 +10,44 @@ import { prisma } from "@/lib/server/prisma";
 import { mapDbProductToProduct, mapProductToDbData } from "@/lib/server/mappers";
 
 // GET /api/products
+// Opcional: ?source=db | local | memory
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const forcedSource = url.searchParams.get("source"); // "db" | "local" | "memory"
+  const forcedSource = url.searchParams.get("source"); // "db" | "local" | "memory" | null
 
-  // Forzado a BD
+  // --- 1) Forzado a DB ---
   if (forcedSource === "db") {
     const dbProducts = await prisma.product.findMany();
-    return NextResponse.json({
-      products: dbProducts.map(mapDbProductToProduct),
-    });
+    const products: Product[] = dbProducts.map(mapDbProductToProduct);
+    return NextResponse.json({ products } satisfies ProductsApiResponse);
   }
 
-  // Forzado a local
+  // --- 2) Forzado a local (memoria + base) ---
   if (forcedSource === "local") {
+    const localProducts = [...productsMemory, ...productsBase];
     return NextResponse.json({
-      products: [...productsMemory, ...productsBase],
-    });
+      products: localProducts,
+    } satisfies ProductsApiResponse);
   }
 
-  // AUTO — siempre intentar BD primero
+  // --- 3) Auto (modo producción recomendado) ---
   try {
     const dbProducts = await prisma.product.findMany();
 
-    // ⚠️ Aunque esté vacío, devolvemos BD
-    return NextResponse.json({
-      products: dbProducts.map(mapDbProductToProduct),
-    });
+    if (dbProducts.length > 0) {
+      const products: Product[] = dbProducts.map(mapDbProductToProduct);
+      return NextResponse.json({ products } satisfies ProductsApiResponse);
+    }
   } catch (err) {
-    console.error("[GET /api/products] Error leyendo BD:", err);
+    console.error("[GET /api/products] Error leyendo DB", err);
+    // seguimos abajo con fallback local
   }
 
-  // Solo si BD falla → fallback
+  // Fallback: memoria + hardcoded
+  const fallbackProducts = [...productsMemory, ...productsBase];
   return NextResponse.json({
-    products: [...productsMemory, ...productsBase],
-  });
+    products: fallbackProducts,
+  } satisfies ProductsApiResponse);
 }
 
 // POST /api/products
