@@ -9,11 +9,8 @@ import {
 import { mapDbProductToProduct } from "@/lib/server/mappers";
 
 // GET /api/products/:id
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
+export async function GET(_req: Request, context: any) {
+  const id = context?.params?.id as string | undefined;
 
   if (!id) {
     return NextResponse.json(
@@ -50,11 +47,8 @@ export async function GET(
 }
 
 // DELETE /api/products/:id
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params;
+export async function DELETE(_req: Request, context: any) {
+  const id = context?.params?.id as string | undefined;
 
   if (!id) {
     return NextResponse.json(
@@ -73,7 +67,7 @@ export async function DELETE(
     deletedFromDb = true;
   } catch (err: any) {
     // P2025 = registro no encontrado
-    if (err.code !== "P2025") {
+    if (err?.code !== "P2025") {
       console.error("[DELETE /api/products/:id] Error borrando en BD", err);
     }
   }
