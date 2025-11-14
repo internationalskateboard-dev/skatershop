@@ -27,10 +27,8 @@ export default function AdminProductList({
   onClone,
   source = "auto",
 }: AdminProductListProps) {
-  const {
-    products: localProducts,
-    removeProduct: removeLocalProduct,
-  } = useProductStore();
+  const { products: localProducts, removeProduct: removeLocalProduct } =
+    useProductStore();
   const getSoldQty = useSalesStore((s) => s.getSoldQty);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -197,7 +195,9 @@ export default function AdminProductList({
                 <div className="text-sm">
                   <p className="font-semibold text-white flex items-center gap-2 flex-wrap">
                     <span>{p.name}</span>
-                    <span className="text-[10px] text-neutral-500">({p.id})</span>
+                    <span className="text-[10px] text-neutral-500">
+                      ({p.id})
+                    </span>
                     {locked && (
                       <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-[2px] font-bold uppercase tracking-wide">
                         LOCKED
@@ -210,15 +210,18 @@ export default function AdminProductList({
                   </p>
 
                   <p className="text-neutral-400 text-xs">
-                    Stock: {typeof p.stock === "number" ? p.stock : "sin definir"}
+                    Stock:{" "}
+                    {typeof p.stock === "number" ? p.stock : "sin definir"}
                   </p>
 
-                  <p className="text-neutral-400 text-xs">
-                    Tallas:{" "}
-                    {Array.isArray(p.sizes) && p.sizes.length
-                      ? p.sizes.join(", ")
-                      : "—"}
-                  </p>
+                  {/* Tallas solo si es ropa y tiene tallas */}
+                  {p.isClothing &&
+                    Array.isArray(p.sizes) &&
+                    p.sizes.length > 0 && (
+                      <p className="text-neutral-400 text-xs">
+                        Tallas: {p.sizes.join(", ")}
+                      </p>
+                    )}
 
                   {p.colors?.length ? (
                     <p className="text-neutral-400 text-xs">

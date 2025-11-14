@@ -1,46 +1,28 @@
 // app/api/products/route.ts
 import { NextResponse } from "next/server";
 import type { Product, ProductsApiResponse } from "@/lib/types";
-import { fetchJsonOrNull } from "@/lib/server/dataSource";
+import { productsBase } from "@/lib/productsBase";
 import {
   productsMemory,
   upsertProductInMemory,
 } from "@/lib/server/productsMemory";
-import { productsBase } from "@/lib/productsBase";
+import { prisma } from "@/lib/server/prisma";
+import { mapDbProductToProduct, mapProductToDbData } from "@/lib/server/mappers";
 
 // GET /api/products
+// Opcional: ?source=db | local | memory
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const forcedSource = url.searchParams.get("source"); // "api" | "local" | null
+  const forcedSource = url.searchParams.get("source"); // "db" | "local" | "memory" | null
 
-  const externalUrl = process.env.SKATERSHOP_PRODUCTS_URL;
-
-  // ---------- 1) FORZADO A API ----------
-  if (forcedSource === "api") {
-    const external = await fetchJsonOrNull(externalUrl);
-
-    // { products: [...] }
-    if (external && Array.isArray((external as any).products)) {
-      return NextResponse.json({
-        products: (external as any).products as Product[],
-      } satisfies ProductsApiResponse);
-    }
-
-    // [ ... ]
-    if (external && Array.isArray(external)) {
-      return NextResponse.json({
-        products: external as Product[],
-      } satisfies ProductsApiResponse);
-    }
-
-    // si pidieron API pero no hay → devolvemos local
-    const localProducts = [...productsMemory, ...productsBase];
-    return NextResponse.json({
-      products: localProducts,
-    } satisfies ProductsApiResponse);
+  // 1) Forzado a BD
+  if (forcedSource === "db") {
+    const dbProducts = await prisma.product.findMany();
+    const products: Product[] = dbProducts.map(mapDbProductToProduct);
+    return NextResponse.json({ products } satisfies ProductsApiResponse);
   }
 
-  // ---------- 2) FORZADO A LOCAL ----------
+  // 2) Forzado a local (memoria + base)
   if (forcedSource === "local") {
     const localProducts = [...productsMemory, ...productsBase];
     return NextResponse.json({
@@ -48,43 +30,58 @@ export async function GET(req: Request) {
     } satisfies ProductsApiResponse);
   }
 
-  // ---------- 3) MODO AUTO (el de siempre) ----------
-  const external = await fetchJsonOrNull(externalUrl);
+  // 3) Auto (producción): siempre intentar BD primero
+  try {
+    const dbProducts = await prisma.product.findMany();
 
-  // { products: [...] }
-  if (external && Array.isArray((external as any).products)) {
-    return NextResponse.json({
-      products: (external as any).products as Product[],
-    } satisfies ProductsApiResponse);
+    // ⚠️ Aunque la tabla esté vacía, devolvemos lo que haya ([]).
+    const products: Product[] = dbProducts.map(mapDbProductToProduct);
+    return NextResponse.json({ products } satisfies ProductsApiResponse);
+  } catch (err) {
+    console.error("[GET /api/products] Error leyendo DB", err);
+    // seguimos abajo con fallback local
   }
 
-  // [ ... ]
-  if (external && Array.isArray(external)) {
-    return NextResponse.json({
-      products: external as Product[],
-    } satisfies ProductsApiResponse);
-  }
-
-  // fallback → memoria + base
-  const localProducts = [...productsMemory, ...productsBase];
+  // 4) Fallback: solo si la BD falla de verdad
+  const fallbackProducts = [...productsMemory, ...productsBase];
   return NextResponse.json({
-    products: localProducts,
+    products: fallbackProducts,
   } satisfies ProductsApiResponse);
 }
 
-// POST /api/products
-export async function POST(req: Request) {
-  const body = (await req.json()) as Product;
 
-  if (!body.id) {
+// POST /api/products
+// Crea o actualiza producto en DB + memoria
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as Product;
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "id es requerido" },
+        { status: 400 }
+      );
+    }
+
+    // Guardar en DB
+    const data = mapProductToDbData(body);
+
+    await prisma.product.upsert({
+      where: { id: body.id },
+      // 👇 aquí el cambio importante: data as any
+      create: data as any,
+      update: data as any,
+    });
+
+    // Mantener comportamiento actual en memoria (por compatibilidad)
+    const saved = upsertProductInMemory(body);
+
+    return NextResponse.json(saved, { status: 201 });
+  } catch (err) {
+    console.error("[POST /api/products] Error", err);
     return NextResponse.json(
-      { error: "id es requerido" },
-      { status: 400 }
+      { error: "Error interno creando producto" },
+      { status: 500 }
     );
   }
-
-  // tu memoria usa upsertProductInMemory
-  const saved = upsertProductInMemory(body);
-
-  return NextResponse.json(saved, { status: 201 });
 }

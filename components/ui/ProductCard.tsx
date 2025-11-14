@@ -26,8 +26,24 @@ export default function ProductCard({ product }: { product: Product }) {
     Array.isArray(product.sizes) && product.sizes.length > 1;
   const hasSingleSize =
     Array.isArray(product.sizes) && product.sizes.length === 1;
+  const hasColor =
+    Array.isArray(product.colors) && product.colors.length > 1;
+  
+
+
+
+
 
   const handleAdd = () => {
+
+
+   // si Varios Colores Disponibles Te lleva a esoger un color
+    if (hasColor) {
+      router.push(`/products/${product.id}`);
+      return;
+    }
+
+
     // si tiene varias tallas → ir al detalle
     if (hasSizes) {
       router.push(`/products/${product.id}`);
@@ -47,6 +63,11 @@ export default function ProductCard({ product }: { product: Product }) {
       return;
     }
 
+ 
+
+
+
+
     // si no tiene tallas → añadir normal
     addToCart({
       id: product.id,
@@ -56,6 +77,18 @@ export default function ProductCard({ product }: { product: Product }) {
       image: product.image || PRODUCT_PLACEHOLDER_IMAGE,
     });
   };
+
+  // 👉 Sacamos un string con los nombres de los colores, si existen
+  /* const colorNames =
+    product.colors && product.colors.length > 0
+      ? product.colors.map((c) => c.name).join(", ")
+      : null; */
+
+      // helper para convertir el nombre del color en algo que entienda CSS
+  const cssColorFromName = (name: string) =>
+    name.toLowerCase().replace(/\s+/g, "");
+
+
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900 to-neutral-950 shadow-md hover:border-yellow-400/80 hover:shadow-[0_0_40px_rgba(250,204,21,0.25)] hover:-translate-y-[3px] transition-transform duration-300">
@@ -91,6 +124,33 @@ export default function ProductCard({ product }: { product: Product }) {
                 {hasSizes ? "Varias tallas" : product.sizes![0]}
               </span>
             </p>
+          )}
+
+          {/* Colores disponibles (chips visuales) */}
+          {product.colors && product.colors.length > 0 && product.isClothing  && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[11px] sm:text-xs text-neutral-500 uppercase tracking-wide">
+                Colores:
+              </span>
+              <div className="flex items-center gap-1.5">
+                {product.colors.slice(0, 5).map((c) => (
+                  <span
+                    key={c.name}
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border border-neutral-700 ring-1 ring-black/40"
+                    style={{
+                      backgroundColor: cssColorFromName(c.name),
+                    }}
+                    title={c.name}
+                  />
+                ))}
+
+                {product.colors.length > 5 && (
+                  <span className="text-[10px] text-neutral-400">
+                    +{product.colors.length - 5}
+                  </span>
+                )}
+              </div>
+            </div>
           )}
 
           <p className="mt-3 text-sm sm:text-base font-bold text-yellow-400">

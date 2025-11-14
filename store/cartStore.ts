@@ -52,6 +52,7 @@ const useCartStore = create<CartState>()(
                 qty: item.qty || 1,
                 image: item.image || "",
                 size: item.size,
+                colorName:item.colorName
               },
             ],
           };

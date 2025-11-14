@@ -209,7 +209,14 @@ export default function AdminProductForm({
             };
           })
         : [];
+// ✅ Solo guardamos tallas si ES ropa
+const sizesToSave = form.isClothing ? form.selectedSizes : [];
 
+// ✅ Solo guardamos guía de tallas si ES ropa
+const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
+
+
+        // Cargamos el objeto con los Datos Que van a la DB
     const newProduct = {
       id: form.id.trim(),
       name: form.name.trim(),
@@ -217,10 +224,10 @@ export default function AdminProductForm({
       image: form.imageData || PRODUCT_PLACEHOLDER_IMAGE,
       desc: form.desc.trim(),
       details: form.details.trim(),
-      sizes: form.selectedSizes,
+      sizes: sizesToSave,
       stock: parseInt(form.stock || "0", 10),
       colors,
-      sizeGuide: form.sizeGuide.trim(),
+      sizeGuide: sizeGuideToSave,
       isClothing: form.isClothing, // <- NUEVO: se guarda si es ropa o no
     };
 
