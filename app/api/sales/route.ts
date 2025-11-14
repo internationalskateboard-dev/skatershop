@@ -51,6 +51,12 @@ export async function GET(req: Request) {
   return NextResponse.json({ sales: localSales } satisfies SalesApiResponse);
 }
 
+
+
+
+
+
+
 // POST /api/sales
 // Registra una nueva venta en DB + memoria
 export async function POST(req: Request) {
@@ -66,11 +72,10 @@ export async function POST(req: Request) {
 
     // Guardar en DB
     const data = mapSaleRecordToDbData(body);
+
     const created = await prisma.sale.create({
-      data: {
-        ...data,
-        // id y createdAt los genera Prisma/DB
-      },
+      // 👇 le decimos a TS que confíe en el shape de data
+      data: data as any,
     });
 
     const saleRecord = mapDbSaleToSaleRecord(created);

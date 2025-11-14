@@ -65,10 +65,12 @@ export async function POST(req: Request) {
 
     // Guardar en DB
     const data = mapProductToDbData(body);
+
     await prisma.product.upsert({
       where: { id: body.id },
-      create: data,
-      update: data,
+      // 👇 aquí el cambio importante: data as any
+      create: data as any,
+      update: data as any,
     });
 
     // Mantener comportamiento actual en memoria (por compatibilidad)
