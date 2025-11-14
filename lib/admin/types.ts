@@ -5,5 +5,5 @@
 export * from "@/lib/types";
 
 // Tipos auxiliares solo para el admin.
-export type AdminDataSource = "db" |"api" | "local";
+export type AdminDataSource = "auto" |"db" |"api" | "local";
 export type AdminDataMode = "auto" | "force";
