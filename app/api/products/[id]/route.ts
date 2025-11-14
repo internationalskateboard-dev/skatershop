@@ -1,7 +1,6 @@
 // app/api/products/[id]/route.ts
 import { NextResponse } from "next/server";
 import type { Product } from "@/lib/types";
-
 import { prisma } from "@/lib/server/prisma";
 import {
   getProductFromMemory,
@@ -12,11 +11,18 @@ import { mapDbProductToProduct } from "@/lib/server/mappers";
 // GET /api/products/:id
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params?: { id?: string } }
 ) {
-  const { id } = await params;
+  const id = context.params?.id;
 
-  // 1) Intentar primero en la BD (Prisma/Postgres)
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing product id" },
+      { status: 400 }
+    );
+  }
+
+  // 1) Intentar primero en BD
   try {
     const dbProduct = await prisma.product.findUnique({
       where: { id },
@@ -28,13 +34,16 @@ export async function GET(
     }
   } catch (err) {
     console.error("[GET /api/products/:id] Error leyendo BD", err);
-    // si algo va mal en la BD, hacemos fallback a memoria
+    // seguimos con fallback a memoria
   }
 
-  // 2) Fallback: memoria (comportamiento antiguo)
+  // 2) Fallback a memoria
   const product = getProductFromMemory(id);
   if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Product not found" },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json(product as Product);
@@ -43,31 +52,40 @@ export async function GET(
 // DELETE /api/products/:id
 export async function DELETE(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params?: { id?: string } }
 ) {
-  const { id } = await params;
+  const id = context.params?.id;
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing product id" },
+      { status: 400 }
+    );
+  }
 
   let deletedFromDb = false;
 
-  // 1) Intentar borrar en la BD
+  // 1) Intentar borrar en BD
   try {
     await prisma.product.delete({
       where: { id },
     });
     deletedFromDb = true;
   } catch (err: any) {
-    // P2025 = registro no encontrado en Prisma → lo ignoramos
+    // P2025 = registro no encontrado
     if (err.code !== "P2025") {
       console.error("[DELETE /api/products/:id] Error borrando en BD", err);
     }
   }
 
-  // 2) Intentar borrar también de memoria (por compatibilidad)
+  // 2) Borrar también de memoria (por compatibilidad)
   const deletedFromMemory = removeProductFromMemory(id);
 
-  // Si no estaba ni en BD ni en memoria
   if (!deletedFromDb && !deletedFromMemory) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Product not found" },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json({ ok: true });
