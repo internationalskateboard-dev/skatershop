@@ -15,14 +15,14 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const forcedSource = url.searchParams.get("source"); // "db" | "local" | "memory" | null
 
-  // --- 1) Forzado a DB ---
+  // 1) Forzado a BD
   if (forcedSource === "db") {
     const dbProducts = await prisma.product.findMany();
     const products: Product[] = dbProducts.map(mapDbProductToProduct);
     return NextResponse.json({ products } satisfies ProductsApiResponse);
   }
 
-  // --- 2) Forzado a local (memoria + base) ---
+  // 2) Forzado a local (memoria + base)
   if (forcedSource === "local") {
     const localProducts = [...productsMemory, ...productsBase];
     return NextResponse.json({
@@ -30,25 +30,25 @@ export async function GET(req: Request) {
     } satisfies ProductsApiResponse);
   }
 
-  // --- 3) Auto (modo producción recomendado) ---
+  // 3) Auto (producción): siempre intentar BD primero
   try {
     const dbProducts = await prisma.product.findMany();
 
-    if (dbProducts.length > 0) {
-      const products: Product[] = dbProducts.map(mapDbProductToProduct);
-      return NextResponse.json({ products } satisfies ProductsApiResponse);
-    }
+    // ⚠️ Aunque la tabla esté vacía, devolvemos lo que haya ([]).
+    const products: Product[] = dbProducts.map(mapDbProductToProduct);
+    return NextResponse.json({ products } satisfies ProductsApiResponse);
   } catch (err) {
     console.error("[GET /api/products] Error leyendo DB", err);
     // seguimos abajo con fallback local
   }
 
-  // Fallback: memoria + hardcoded
+  // 4) Fallback: solo si la BD falla de verdad
   const fallbackProducts = [...productsMemory, ...productsBase];
   return NextResponse.json({
     products: fallbackProducts,
   } satisfies ProductsApiResponse);
 }
+
 
 // POST /api/products
 // Crea o actualiza producto en DB + memoria
