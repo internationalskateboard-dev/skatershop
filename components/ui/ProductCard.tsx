@@ -19,30 +19,27 @@ import type { Product } from "@/lib/types";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 
 export default function ProductCard({ product }: { product: Product }) {
+  //
   const router = useRouter();
+  //
   const addToCart = useCartStore((s) => s.addToCart);
-
+  //
   const hasSizes =
     Array.isArray(product.sizes) && product.sizes.length > 1;
+  //
   const hasSingleSize =
     Array.isArray(product.sizes) && product.sizes.length === 1;
+  //
   const hasColor =
     Array.isArray(product.colors) && product.colors.length > 1;
-  
-
-
-
-
-
+//
   const handleAdd = () => {
-
 
    // si Varios Colores Disponibles Te lleva a esoger un color
     if (hasColor) {
       router.push(`/products/${product.id}`);
       return;
     }
-
 
     // si tiene varias tallas → ir al detalle
     if (hasSizes) {
@@ -62,11 +59,6 @@ export default function ProductCard({ product }: { product: Product }) {
       });
       return;
     }
-
- 
-
-
-
 
     // si no tiene tallas → añadir normal
     addToCart({
@@ -107,21 +99,25 @@ export default function ProductCard({ product }: { product: Product }) {
       {/* Contenido */}
       <div className="flex flex-col gap-2.5 p-3.5 sm:p-4">
         <div>
+          {/* Nombre del Producto */}
           <h3 className="text-sm sm:text-base font-semibold tracking-tight">
             {product.name}
           </h3>
 
+          {/* Descripcion Corta del Producto */}
           {product.desc ? (
             <p className="mt-1 text-xs sm:text-sm text-neutral-400 line-clamp-2">
               {product.desc}
             </p>
           ) : null}
 
+          {/* Tallas Disponibles */}
           {(hasSizes || hasSingleSize) && (
             <p className="mt-2 text-[11px] uppercase tracking-wide text-neutral-500">
               Tallas:{" "}
               <span className="text-neutral-100">
-                {hasSizes ? "Varias tallas" : product.sizes![0]}
+                {/* hasSizes ? "Varias tallas" : product.sizes![0] */}
+                {hasSizes ? product.sizes?.join(", ") : product.sizes?.[0]}
               </span>
             </p>
           )}
@@ -152,7 +148,18 @@ export default function ProductCard({ product }: { product: Product }) {
               </div>
             </div>
           )}
+            
+          {/* Cantidad disponible */}
+          {/* product.isClothing && product.sizes?.[0] === "ONE SIZE"  && */(
+            <span className="flex items-center mt-1 text-xs sm:text-sm line-clamp-2 text-neutral-500"> 
+              Stock:{" "}
+              <p className="flex items-center text-xs sm:text-sm line-clamp-1.5 pl-2 text-green-400">
+                {product.stock}
+              </p>
+            </span>
+          )}
 
+          {/* Precio */}
           <p className="mt-3 text-sm sm:text-base font-bold text-yellow-400">
             €{product.price.toFixed(2)}
           </p>
@@ -164,7 +171,7 @@ export default function ProductCard({ product }: { product: Product }) {
             href={`/products/${product.id}`}
             className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-700 bg-neutral-900/70 px-4 py-2 text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-neutral-200 hover:border-yellow-400 hover:text-yellow-300 transition"
           >
-            Ver
+            Detalles
           </Link>
 
           <button

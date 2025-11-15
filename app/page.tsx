@@ -15,6 +15,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function HomePage() {
   const year = new Date().getFullYear();
@@ -72,11 +73,15 @@ export default function HomePage() {
               {/* Mini stats */}
               <div className="flex flex-wrap gap-6 pt-4 text-[11px] md:text-xs text-neutral-400">
                 <div>
-                  <p className="font-semibold text-neutral-200">Ediciones limitadas</p>
+                  <p className="font-semibold text-neutral-200">
+                    Ediciones limitadas
+                  </p>
                   <p>Sin reposiciones, piezas pensadas para durar.</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-neutral-200">Pensado para patinar</p>
+                  <p className="font-semibold text-neutral-200">
+                    Pensado para patinar
+                  </p>
                   <p>Fits cómodos, tejidos resistentes y detalles útiles.</p>
                 </div>
               </div>
@@ -84,44 +89,72 @@ export default function HomePage() {
 
             {/* Columna “mock” de producto destacado */}
             <div className="flex-1 lg:max-w-sm">
-              <div className="relative rounded-3xl border border-neutral-800 bg-gradient-to-b from-neutral-900/90 to-neutral-950/90 p-5 md:p-6 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+              <div className="relative rounded-3xl border border-neutral-800 bg-gradient-to-b from-neutral-900/90 to-neutral-950/90 p-5 md:p-6 shadow-[0_0_40px_rgba(0,0,0,0.6)] group">
                 <div className="absolute inset-x-6 -top-3 h-10 bg-yellow-400/10 blur-2xl rounded-full pointer-events-none" />
 
                 <div className="text-[11px] mb-2 flex items-center justify-between text-neutral-400">
                   <span className="uppercase tracking-[0.18em]">
-                    drop destacado
+                    Articulo Destacado
                   </span>
                   <span className="text-yellow-400/80">limited</span>
                 </div>
 
-                <div className="aspect-[4/3] w-full rounded-2xl bg-[radial-gradient(circle_at_0%_0%,#facc15_0,#171717_45%,#020617_100%)] border border-yellow-400/20 flex items-center justify-center">
-                  <span className="text-5xl md:text-6xl">🧥</span>
+                {/* Imagen del deck destacado */}
+                <div className="perspective-1000">
+                  <div
+                    className="
+                            relative aspect-[4/3] w-full rounded-2xl
+                            bg-[radial-gradient(circle_at_0%_0%,#facc15_0,#171717_45%,#020617_100%)]
+                            border border-yellow-400/20 overflow-hidden
+                            transform-gpu preserve-3d animate-float-3d
+                            transition-transform duration-700
+                            group-hover:-translate-y-1 group-hover:rotate-[3deg]
+                          "
+                  >
+                    <Image
+                      src="/images/zulia.png"
+                      alt="Deck edición limitada Zulia"
+                      fill
+                      className="object-contain md:object-cover select-none pointer-events-none"
+                      priority
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">Hoodie Blacktop Heavy</p>
-                    <p className="text-yellow-400 font-bold text-sm">€59.90</p>
+                    <p className="text-sm font-semibold">
+                      Deck edición limitada “Zulia”
+                    </p>
+                    <p className="text-yellow-400 font-bold text-sm">€55.90</p>
                   </div>
                   <p className="text-[11px] text-neutral-400">
-                    Algodón 450gsm, fit oversize, pensado para noches largas en el
-                    spot. Unidades limitadas.
+                    Tabla con arte inspirado en calles latinas, tirada corta y
+                    numerada. Ideal para colgar o patinarla hasta destruirla.
                   </p>
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[11px] text-neutral-400">
                   <div className="flex -space-x-2">
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-800 text-[10px] border border-neutral-700">
-                      S
+                      8.0
                     </span>
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-800 text-[10px] border border-neutral-700">
-                      M
+                      8.25
                     </span>
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-800 text-[10px] border border-neutral-700">
-                      L
+                      8.5
                     </span>
                   </div>
-                  <p className="text-yellow-400/80">Disponible en la tienda →</p>
+
+                  <p className="text-yellow-400/80">
+                    <Link
+                      href={`/products/patineta-zulia`}
+                      className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-700 bg-neutral-900/70 px-4 py-2 text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-neutral-200 hover:border-yellow-400 hover:text-yellow-300 transition"
+                    >
+                      Disponible en la tienda →
+                    </Link>
+                  </p>
                 </div>
               </div>
             </div>
@@ -164,7 +197,8 @@ export default function HomePage() {
                 próximo drop
               </p>
               <h2 className="text-2xl md:text-3xl font-bold">
-                Drop nocturno <span className="text-yellow-400">“Midnight Lines”</span>
+                Drop nocturno{" "}
+                <span className="text-yellow-400">“Midnight Lines”</span>
               </h2>
               <p className="text-sm md:text-base text-neutral-300 leading-relaxed">
                 Hoodies pesadas, tees oversize y beanies listos para sesiones
@@ -270,8 +304,8 @@ export default function HomePage() {
               </h2>
               <p className="text-sm md:text-base text-neutral-300 leading-relaxed">
                 Skater Shop nace de spots compartidos, trucos fallados y noches
-                enteras probando la misma línea. Queremos construir una comunidad
-                donde la ropa acompañe tus sesiones, no que te limite.
+                enteras probando la misma línea. Queremos construir una
+                comunidad donde la ropa acompañe tus sesiones, no que te limite.
               </p>
               <p className="text-xs text-neutral-400">
                 Comparte tus fotos con{" "}
@@ -292,26 +326,50 @@ export default function HomePage() {
 
             <div className="flex-1">
               <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2 aspect-[4/3] rounded-2xl bg-[radial-gradient(circle_at_0%_0%,#facc15_0,#171717_45%,#020617_100%)] border border-yellow-400/30 flex items-center justify-center text-3xl">
-                  🛹
+                
+                
+                <div className="col-span-2 aspect-square rounded-2xl border border-yellow-400/30 relative overflow-hidden">
+                  <Image
+                    src="/images/unnamed3.jpeg"
+                    alt="Comunidad"
+                    fill
+                    className="object-cover select-none pointer-events-none"
+                  />
                 </div>
-                <div className="aspect-square rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-2xl">
-                  🎧
+
+                <div className="aspect-square rounded-2xl bg-neutral-900 border border-neutral-800 relative overflow-hidden">
+                  <Image
+                    src="/images/unnamed2.jpeg"
+                    alt="Comunidad"
+                    fill
+                    className="object-cover select-none pointer-events-none"
+                  />
                 </div>
-                <div className="aspect-square rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-2xl">
-                  🏙️
+
+                <div className="aspect-square rounded-2xl bg-neutral-900 border border-neutral-800 relative overflow-hidden">
+                  <Image
+                    src="/images/unnamed.jpg"
+                    alt="Comunidad"
+                    fill
+                    className="object-contain select-none pointer-events-none"
+                  />
                 </div>
-                <div className="col-span-2 aspect-[5/2] rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-between px-4 text-[11px]">
-                  <div>
-                    <p className="text-neutral-200 font-semibold">
-                      Clips desde el spot
-                    </p>
-                    <p className="text-neutral-400">
-                      Sube tus líneas con #SkaterShop
-                    </p>
-                  </div>
-                  <span className="text-yellow-300 text-xl">★</span>
+
+                <div className="col-span-2 aspect-[5/2] rounded-2xl bg-neutral-900 border border-neutral-800 relative overflow-hidden">
+                  <Image
+                    src="/images/unnamed6.jpeg"
+                    alt="Comunidad"
+                    fill
+                    className="object-cover select-none pointer-events-none"
+                  />
                 </div>
+
+
+
+
+
+
+
               </div>
             </div>
           </div>

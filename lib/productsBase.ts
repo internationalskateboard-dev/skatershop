@@ -10,7 +10,7 @@ import { PRODUCT_PLACEHOLDER_IMAGE } from "./constants";
 
 export const productsBase: Product[] = [
   {
-    id: "hoodie-black-Base",
+    id: "tee-skull",
     name: "Hoodie Black Base",
     price: 39.9,
     desc: "Hoodie negro oversize con logo.",

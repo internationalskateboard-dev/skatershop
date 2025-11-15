@@ -88,8 +88,7 @@ export default function AdminProductForm({
       setColorImages(
         initialData.colors.map((c: any) => ({
           name: c.name,
-          image:
-            c.image && !c.image.includes("...truncated") ? c.image : "",
+          image: c.image && !c.image.includes("...truncated") ? c.image : "",
         }))
       );
     } else {
@@ -170,9 +169,7 @@ export default function AdminProductForm({
           selectedSizes: prev.selectedSizes.filter((s) => s !== size),
         };
       }
-      const withoutOneSize = prev.selectedSizes.filter(
-        (s) => s !== "ONE SIZE"
-      );
+      const withoutOneSize = prev.selectedSizes.filter((s) => s !== "ONE SIZE");
       return {
         ...prev,
         selectedSizes: [...withoutOneSize, size],
@@ -209,14 +206,13 @@ export default function AdminProductForm({
             };
           })
         : [];
-// ✅ Solo guardamos tallas si ES ropa
-const sizesToSave = form.isClothing ? form.selectedSizes : [];
+    // ✅ Solo guardamos tallas si ES ropa
+    const sizesToSave = form.isClothing ? form.selectedSizes : [];
 
-// ✅ Solo guardamos guía de tallas si ES ropa
-const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
+    // ✅ Solo guardamos guía de tallas si ES ropa
+    const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
 
-
-        // Cargamos el objeto con los Datos Que van a la DB
+    // Cargamos el objeto con los Datos Que van a la DB
     const newProduct = {
       id: form.id.trim(),
       name: form.name.trim(),
@@ -282,11 +278,11 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
 
       <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
         <InputField
-          label="ID (slug único, ej: hoodie-black)"
+          label="ID (slug único)"
           name="id"
           value={form.id}
           onChange={handleChangeTextField}
-          placeholder="hoodie-black"
+          placeholder="ej: hoodie-black"
         />
 
         <InputField
@@ -305,7 +301,7 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
           type="number"
           placeholder="17.99"
         />
-
+        {/* Stock disponible */}
         <InputField
           label="Stock disponible"
           name="stock"
@@ -315,6 +311,24 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
           placeholder="10"
         />
 
+        {/* Descripción corta */}
+        <TextareaField
+          label="Descripción corta"
+          name="desc"
+          value={form.desc}
+          onChange={handleChangeTextField}
+          placeholder="Hoodie oversize negro con logo bordado."
+        />
+
+        <TextareaField
+          label="Detalles largos"
+          name="details"
+          value={form.details}
+          onChange={handleChangeTextField}
+          placeholder="Fit relajado, algodón pesado, 450gsm..."
+        />
+
+        {/* Imagen General del Producto */}
         <ImageDropField
           label="Imagen del producto"
           hint="Arrastra una imagen aquí o haz click para seleccionar"
@@ -332,22 +346,6 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
           accept="image/*"
           className="hidden"
           onChange={onFileInputChange}
-        />
-
-        <TextareaField
-          label="Descripción corta"
-          name="desc"
-          value={form.desc}
-          onChange={handleChangeTextField}
-          placeholder="Hoodie oversize negro con logo bordado."
-        />
-
-        <TextareaField
-          label="Detalles largos"
-          name="details"
-          value={form.details}
-          onChange={handleChangeTextField}
-          placeholder="Fit relajado, algodón pesado, 450gsm..."
         />
 
         {/* NUEVO: checkbox Ropa */}
@@ -370,7 +368,7 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
         </div>
 
         {/* CAMPOS SOLO PARA ROPA */}
-        {form.isClothing && (
+        {form.isClothing ? (
           <>
             <div className="md:col-span-2">
               <span className="text-neutral-300 text-sm block mb-2">
@@ -435,8 +433,10 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
                 />
               ))}
           </>
-        )}
+        )  : <> {/* CAMPOS SOLO PARA LO QUE NO ES ROPA */} <p className="text-neutral-400 text-sm">Este producto no es ropa analizar la logica para poder colocar 3 imagenes mas para el slider  .</p> </> 
+        }
 
+        {/* submit */}
         <div className="md:col-span-2 flex justify-end gap-3 items-center">
           <button
             type="submit"
@@ -449,6 +449,8 @@ const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
             <p className="text-xs text-neutral-300">{saveMessage}</p>
           )}
         </div>
+
+ 
       </form>
     </section>
   );

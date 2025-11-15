@@ -1,4 +1,3 @@
-// components/admin/AdminProductList.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,12 +12,6 @@ import { downloadProductsCsv } from "@/lib/admin/exportProductsCsv";
 type AdminProductListProps = {
   onEdit?: (p: Product) => void;
   onClone?: (p: Product) => void;
-  /**
-   * Fuente que queremos usar en esta vista.
-   * - "api"   → fuerza /api/products?source=api
-   * - "local" → fuerza /api/products?source=local
-   * - "auto" o undefined → /api/products (que decida el backend)
-   */
   source?: "api" | "local" | "auto";
 };
 
@@ -35,15 +28,9 @@ export default function AdminProductList({
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
 
-  const {
-    setSource,
-    setLastError,
-    reportApiSuccess,
-    reportApiError,
-    // ojo: tu contexto NO tiene "mode" aquí, solo setters
-  } = useAdminDataSource();
+  const { setSource, setLastError, reportApiSuccess, reportApiError } =
+    useAdminDataSource();
 
-  // cargar productos al montar y cuando cambie la fuente pedida
   useEffect(() => {
     let cancelled = false;
 
@@ -64,14 +51,12 @@ export default function AdminProductList({
         const apiProducts = (data.products || []) as Product[];
         if (!cancelled) {
           setProducts(apiProducts);
-          // avisamos al contexto qué fuente terminó usándose
           setSource(source === "auto" ? "api" : source);
           reportApiSuccess();
         }
       } catch (err: unknown) {
         console.warn("[AdminProductList] usando productos locales:", err);
         if (!cancelled) {
-          // si falla la API siempre tendremos los locales
           setProducts(localProducts);
           setSource("local");
           const msg = "No se pudo leer productos desde la API.";
@@ -96,10 +81,9 @@ export default function AdminProductList({
     setLastError,
     reportApiError,
     reportApiSuccess,
-    source, // 👈 importante: recargar al cambiar fuente
+    source,
   ]);
 
-  // filtro por texto (sin cambios)
   const filteredProducts = useMemo(() => {
     if (!search.trim()) return products;
     const q = search.trim().toLowerCase();
@@ -119,7 +103,6 @@ export default function AdminProductList({
       return;
     }
 
-    // intentamos borrar en API primero
     try {
       const res = await fetch(`/api/products/${p.id}`, {
         method: "DELETE",
@@ -147,23 +130,25 @@ export default function AdminProductList({
 
   return (
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+      {/* Header + búsqueda */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-xl font-bold text-white">Productos</h2>
+          <h2 className="text-xl font-bold text-white">Lista de Productos</h2>
           <p className="text-xs text-neutral-500">
             Filtra por ID, nombre o descripción. Exporta solo lo filtrado.
           </p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex w-full md:w-auto flex-col md:flex-row gap-2">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar producto…"
-            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white outline-none focus:border-yellow-400"
+            placeholder="Buscar producto..."
+            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white outline-none focus:border-yellow-400 w-full md:w-64"
           />
           <button
             onClick={handleExportCsv}
-            className="bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
+            className="bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition md:self-auto self-stretch whitespace-nowrap"
           >
             Exportar CSV
           </button>
@@ -177,118 +162,230 @@ export default function AdminProductList({
             : "No hay productos que coincidan con el filtro."}
         </p>
       ) : (
-        <ul className="space-y-4">
-          {filteredProducts.map((p) => {
-            const soldQty = getSoldQty(p.id);
-            const locked = soldQty > 0;
+        <div className="mt-2 border border-neutral-800 rounded-lg overflow-hidden">
+          {/* Scroll horizontal solo donde haga falta; se desactiva visualmente en desktop */}
+          <div className="overflow-x-auto md:overflow-x-visible">
+            {/* Scroll vertical: si la tabla es muy grande, hace scroll.
+                En pantallas grandes la barra se oculta con scrollbar-hide */}
+            <div className="max-h-[60vh] overflow-y-auto md:scrollbar-hide">
+              <table className="min-w-full text-sm">
+                <thead className="bg-neutral-950 sticky top-0 z-10">
+                  <tr className="text-[11px] uppercase tracking-wide text-neutral-500">
+                    <th className="px-3 py-2 text-center">Producto</th>
+                    <th className="px-3 py-2 text-left hidden md:table-cell">
+                      Precio
+                    </th>
+                    <th className="px-3 py-2 text-left hidden lg:table-cell">
+                      Stock
+                    </th>
+                    <th className="px-3 py-2 text-left hidden lg:table-cell">
+                      Tallas
+                    </th>
+                    <th className="px-3 py-2 text-left hidden xl:table-cell">
+                      Colores
+                    </th>
+                    <th className="px-3 py-2 text-left hidden lg:table-cell">
+                      Vendido
+                    </th>
+                    <th className="px-3 py-2 text-left hidden md:table-cell">
+                      Imagen
+                    </th>
+                    <th className="px-3 py-2 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((p) => {
+                    const soldQty = getSoldQty(p.id);
+                    const locked = soldQty > 0;
 
-            const isTruncated =
-              typeof p.image === "string" && p.image.includes("...truncated");
-            const imageToShow =
-              !p.image || isTruncated ? PRODUCT_PLACEHOLDER_IMAGE : p.image;
+                    const isTruncated =
+                      typeof p.image === "string" &&
+                      p.image.includes("...truncated");
+                    const imageToShow =
+                      !p.image || isTruncated
+                        ? PRODUCT_PLACEHOLDER_IMAGE
+                        : p.image;
 
-            return (
-              <li
-                key={p.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-yellow-500 pb-4 gap-3"
-              >
-                <div className="text-sm">
-                  <p className="font-semibold text-white flex items-center gap-2 flex-wrap">
-                    <span>{p.name}</span>
-                    <span className="text-[10px] text-neutral-500">
-                      ({p.id})
-                    </span>
-                    {locked && (
-                      <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-[2px] font-bold uppercase tracking-wide">
-                        LOCKED
-                      </span>
-                    )}
-                  </p>
+                    const price = Number(p.price ?? 0).toFixed(2);
 
-                  <p className="text-yellow-400 font-bold">
-                    €{Number(p.price ?? 0).toFixed(2)}
-                  </p>
+                    return (
+                      <tr
+                        key={p.id}
+                        className="border-t border-neutral-800 hover:bg-neutral-800/40 transition"
+                      >
+                        {/* Producto + info compacta para mobile */}
+                        <td className="align-top px-3 py-3 text-xs text-neutral-200">
+                          <div className="flex items-start gap-3">
+                            {/* Thumbnail solo en mobile */}
+                            <div className="md:hidden flex-shrink-0">
+                              <Image
+                                src={imageToShow}
+                                alt={p.name ?? "producto"}
+                                width={56}
+                                height={56}
+                                className="w-14 h-14 object-cover rounded-md border border-neutral-800 bg-neutral-950"
+                              />
+                            </div>
 
-                  <p className="text-neutral-400 text-xs">
-                    Stock:{" "}
-                    {typeof p.stock === "number" ? p.stock : "sin definir"}
-                  </p>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-semibold text-white">
+                                  {p.name}
+                                </span>
+                                <span className="text-[10px] text-neutral-500">
+                                  ({p.id})
+                                </span>
+                                {locked && (
+                                  <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-[2px] font-bold uppercase tracking-wide">
+                                    LOCKED
+                                  </span>
+                                )}
+                              </div>
 
-                  {/* Tallas solo si es ropa y tiene tallas */}
-                  {p.isClothing &&
-                    Array.isArray(p.sizes) &&
-                    p.sizes.length > 0 && (
-                      <p className="text-neutral-400 text-xs">
-                        Tallas: {p.sizes.join(", ")}
-                      </p>
-                    )}
+                              {p.desc && (
+                                <p className="text-[11px] text-neutral-500 leading-snug">
+                                  {p.desc}
+                                </p>
+                              )}
 
-                  {p.colors?.length ? (
-                    <p className="text-neutral-400 text-xs">
-                      Colores: {p.colors.map((c) => c.name).join(", ")}
-                    </p>
-                  ) : null}
+                              {p.sizeGuide && (
+                                <p className="text-[10px] text-neutral-500 mt-1 whitespace-pre-line hidden md:block">
+                                  {p.sizeGuide}
+                                </p>
+                              )}
 
-                  {p.sizeGuide ? (
-                    <p className="text-[11px] text-neutral-500 mt-2 whitespace-pre-line">
-                      {p.sizeGuide}
-                    </p>
-                  ) : null}
+                              {/* Meta info compacta SOLO en mobile */}
+                              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-neutral-400 md:hidden">
+                                <span>€{price}</span>
+                                {typeof p.stock === "number" && (
+                                  <span>Stock: {p.stock}</span>
+                                )}
+                                {p.isClothing &&
+                                  Array.isArray(p.sizes) &&
+                                  p.sizes.length > 0 && (
+                                    <span>
+                                      Tallas: {p.sizes.slice(0, 3).join(", ")}
+                                      {p.sizes.length > 3 && "…"}
+                                    </span>
+                                  )}
+                                {p.colors?.length ? (
+                                  <span>
+                                    Colores:{" "}
+                                    {p.colors
+                                      .map((c) => c.name)
+                                      .slice(0, 3)
+                                      .join(", ")}
+                                    {p.colors.length > 3 && "…"}
+                                  </span>
+                                ) : null}
+                                {soldQty > 0 && (
+                                  <span>Vendidos: {soldQty}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
 
-                  <p className="text-neutral-500 text-[11px] leading-snug mt-1">
-                    {p.desc}
-                  </p>
+                        {/* Precio (solo desde md) */}
+                        <td className="items-center text-center px-3 py-3 text-xs text-yellow-400 font-bold hidden md:table-cell whitespace-nowrap">
+                          €{price}
+                        </td>
 
-                  <div className="mt-2">
-                    <Image
-                      src={imageToShow}
-                      alt={p.name ?? "producto"}
-                      width={80}
-                      height={80}
-                      className="w-20 h-20 object-cover rounded-lg border border-neutral-800 bg-neutral-950"
-                    />
-                    {isTruncated && (
-                      <p className="text-[10px] text-yellow-400 mt-1">
-                        imagen recortada en local
-                      </p>
-                    )}
-                  </div>
+                        {/* Stock */}
+                        <td className="items-center text-center px-3 py-3 text-xs text-neutral-300 hidden lg:table-cell whitespace-nowrap">
+                          {typeof p.stock === "number"
+                            ? p.stock
+                            : "sin definir"}
+                        </td>
 
-                  <p className="text-[10px] text-neutral-500 mt-2">
-                    Vendido: {soldQty} unidad{soldQty === 1 ? "" : "es"}
-                  </p>
-                </div>
+                        {/* Tallas */}
+                        <td className="items-center text-center px-3 py-3 text-[11px] text-neutral-300 hidden lg:table-cell">
+                          {p.isClothing &&
+                          Array.isArray(p.sizes) &&
+                          p.sizes.length > 0 ? (
+                            <span>{p.sizes.join(", ")}</span>
+                          ) : (
+                            <span className="text-neutral-600">—</span>
+                          )}
+                        </td>
 
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    onClick={() => handleDelete(p)}
-                    className="self-start md:self-auto bg-red-500/20 text-red-400 border border-red-500/40 rounded-lg text-[11px] font-semibold py-2 px-3 hover:bg-red-500/30 hover:text-red-300 transition"
-                  >
-                    Borrar
-                  </button>
+                        {/* Colores */}
+                        <td className="items-center text-center px-3 py-3 text-[11px] text-neutral-300 hidden xl:table-cell">
+                          {p.colors?.length ? (
+                            <span>
+                              {p.colors.map((c) => c.name).join(", ")}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-600">—</span>
+                          )}
+                        </td>
 
-                  {!locked && onEdit ? (
-                    <button
-                      onClick={() => onEdit(p)}
-                      className="self-start md:self-auto bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-2 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
-                    >
-                      Editar
-                    </button>
-                  ) : null}
+                        {/* Vendido */}
+                        <td className="text-center px-3 py-3 text-[11px] text-neutral-300 hidden lg:table-cell whitespace-nowrap">
+                          {soldQty > 0 ? (
+                            <span className="text-green-400">
+                              {soldQty}
+                            </span>
+                          ) : (
+                            <span className="text-red-500">{soldQty}</span>
+                          )}
+                        </td>
 
-                  {locked && onClone ? (
-                    <button
-                      onClick={() => onClone(p)}
-                      className="self-start md:self-auto bg-yellow-400 text-black rounded-lg text-[11px] font-bold py-2 px-3 hover:bg-yellow-300 active:scale-95 transition"
-                    >
-                      Clonar como nuevo
-                    </button>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                        {/* Imagen grande: solo desktop/tablet */}
+                        <td className="items-center px-3 py-3 hidden md:table-cell">
+                          <div className="flex flex-col items-start gap-1">
+                            <Image
+                              src={imageToShow}
+                              alt={p.name ?? "producto"}
+                              width={64}
+                              height={64}
+                              className="w-16 h-16 object-cover rounded-md border border-neutral-800 bg-neutral-950"
+                            />
+                            {isTruncated && (
+                              <p className="text-[9px] text-yellow-400">
+                                imagen recortada en local
+                              </p>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="items-center px-3 py-3">
+                          <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                            <button
+                              onClick={() => handleDelete(p)}
+                              className="bg-red-500/20 text-red-400 border border-red-500/40 rounded-lg text-[11px] font-semibold py-1.5 px-3 hover:bg-red-500/30 hover:text-red-300 transition"
+                            >
+                              Borrar
+                            </button>
+
+                            {!locked && onEdit && (
+                              <button
+                                onClick={() => onEdit(p)}
+                                className="bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-[11px] font-semibold py-1.5 px-3 hover:border-yellow-400 hover:text-yellow-400 transition"
+                              >
+                                Editar
+                              </button>
+                            )}
+
+                            {locked && onClone && (
+                              <button
+                                onClick={() => onClone(p)}
+                                className="bg-yellow-400 text-black rounded-lg text-[11px] font-bold py-1.5 px-3 hover:bg-yellow-300 active:scale-95 transition"
+                              >
+                                Clonar
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );
