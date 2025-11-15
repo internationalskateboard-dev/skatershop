@@ -49,7 +49,8 @@ function ShopPageWithContext() {
 
   return (
     <ClientOnly>
-      <div className="text-white bg-neutral-950 min-h-screen">
+      {/* <div className="text-white bg-neutral-950 min-h-screen"> */}
+      <div className="text-white bg-neutral-900 min-h-screen">
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-6">
           {/* Header de la tienda */}
           <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
@@ -66,15 +67,19 @@ function ShopPageWithContext() {
                 Fuente:{" "}
                 <span
                   className={
-                    source === "api"
+                    source === "db"
                       ? "text-green-400"
+                      : source === "api"
+                      ? "text-blue-400"
                       : source === "local"
                       ? "text-yellow-400"
                       : "text-neutral-300"
                   }
                 >
-                  {source === "api"
-                    ? "API"
+                  {source === "db"
+                    ? "BD (Prisma/Postgres)"
+                    : source === "api"
+                    ? "API externa"
                     : source === "local"
                     ? "Local (Zustand)"
                     : "Base"}

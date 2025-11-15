@@ -5,17 +5,13 @@
  * ------------------------------------------------------------
  * - Busca el producto en la fuente unificada (base + admin)
  * - Muestra imagen, nombre, detalles, precio
- * - Maneja tallas:
- *    → si tiene tallas, pide seleccionarla
- *    → si no tiene, añade directo
- *    → si tiene 1 sola talla, la preselecciona
- * - Si el producto YA está en el carrito → muestra "Ya en carrito ✅"
- * - Permite cambiar la talla de un item que ya estaba en el carrito
- * - Usa placeholder global de imagen
+ * - Maneja tallas
+ * - Sincroniza talla, cantidad y color con el carrito
+ * 
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import useMergedProducts from "@/lib/useMergedProducts";
@@ -26,6 +22,8 @@ import type { Product } from "@/lib/types";
 type ToastState = { show: boolean; kind: "success" | "error"; text: string };
 
 export default function ProductDetailPage() {
+  const router = useRouter();
+
   const params = useParams();
   // en Next 13/14 con app router, params.id puede venir como string o string[]
   const id = Array.isArray(params?.id) ? params.id[0] : (params?.id as string);
@@ -51,6 +49,10 @@ export default function ProductDetailPage() {
     kind: "success",
     text: "",
   });
+  const [quantity, setQuantity] = useState(1);
+  const [selectedColorName, setSelectedColorName] = useState<string | null>(
+    null
+  );
 
   const showToast = (kind: ToastState["kind"], text: string, ms = 2200) => {
     setToast({ show: true, kind, text });
@@ -61,27 +63,73 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!product) return;
 
-    // si tiene exactamente 1 talla → la dejamos ya marcada
+    const inCart = cart.find((i) => i.id === product.id);
+
+    // tallas
     if (Array.isArray(product.sizes) && product.sizes.length === 1) {
       setSelectedSize(product.sizes[0]);
     } else {
-      setSelectedSize(null);
+      setSelectedSize(inCart?.size ?? null);
     }
 
-    const inCart = cart.find((i) => i.id === product.id);
     if (inCart) {
       setAdded(true);
-      // si en carrito había talla → también la traemos
-      if (inCart.size) {
-        setSelectedSize(inCart.size);
+
+      // cantidad
+      if (typeof inCart.qty === "number") {
+        setQuantity(inCart.qty);
+      } else {
+        setQuantity(1);
+      }
+
+      // color: si el carrito tiene, lo usamos; si no, primer color
+      if (inCart.colorName) {
+        setSelectedColorName(inCart.colorName);
+      } else if (product.colors && product.colors.length > 0) {
+        setSelectedColorName(product.colors[0].name);
+      } else {
+        setSelectedColorName(null);
       }
     } else {
       setAdded(false);
+      setQuantity(1);
+
+      // color por defecto cuando no está en carrito
+      if (product.colors && product.colors.length > 0) {
+        setSelectedColorName(product.colors[0].name);
+      } else {
+        setSelectedColorName(null);
+      }
     }
 
     // ocultar toast cuando cambie de producto
     setToast((t) => ({ ...t, show: false }));
   }, [product, cart]);
+
+  // helper para convertir el nombre del color en algo que entienda CSS
+  const cssColorFromName = (name: string) =>
+    name.toLowerCase().replace(/\s+/g, "");
+
+  // imagen actual según el color seleccionado (o la del producto)
+  const currentImage = useMemo(() => {
+    if (!product) return PRODUCT_PLACEHOLDER_IMAGE;
+
+    const baseImage = product.image || PRODUCT_PLACEHOLDER_IMAGE;
+
+    if (product.colors && product.colors.length > 0) {
+      const activeName =
+        selectedColorName ?? product.colors[0]?.name ?? null;
+
+      const activeColor =
+        (activeName &&
+          product.colors.find((c) => c.name === activeName)) ||
+        product.colors[0];
+
+      return activeColor?.image || baseImage;
+    }
+
+    return baseImage;
+  }, [product, selectedColorName]);
 
   // si no se encontró el producto
   if (!product) {
@@ -98,8 +146,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const hasSizes =
-    Array.isArray(product.sizes) && product.sizes.length > 0;
+  const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
 
   const handleSelectSize = (size: string) => {
     setSelectedSize(size);
@@ -109,6 +156,20 @@ export default function ProductDetailPage() {
       setItemSize(product.id, size);
       showToast("success", "Talla cambiada en el carrito ✅");
     }
+  };
+
+  // cambiar color (solo afecta al estado local y a la imagen / addToCart)
+  const handleSelectColor = (colorName: string) => {
+    setSelectedColorName(colorName);
+  };
+
+  // Función para cambiar cantidad
+  const handleQuantityChange = (delta: number) => {
+    setQuantity((q) => {
+      const next = q + delta;
+      // mínimo 1, máximo 10 (puedes ajustar)
+      return Math.min(10, Math.max(1, next));
+    });
   };
 
   const handleAddToCart = () => {
@@ -125,13 +186,20 @@ export default function ProductDetailPage() {
         ? product.sizes[0]
         : undefined);
 
+    const chosenColorName =
+      selectedColorName ||
+      (product.colors && product.colors.length > 0
+        ? product.colors[0].name
+        : undefined);
+
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
-      qty: 1,
-      image: product.image || PRODUCT_PLACEHOLDER_IMAGE,
+      qty: quantity,
+      image: currentImage,
       size: chosenSize,
+      colorName: chosenColorName, // 👈 se guarda en el carrito
     });
 
     setAdded(true);
@@ -140,10 +208,20 @@ export default function ProductDetailPage() {
 
   return (
     <div className="relative max-w-5xl mx-auto py-10 px-6 text-white grid md:grid-cols-2 gap-8">
-      {/* Imagen */}
+      <div className="md:col-span-2 mb-4">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/70 px-4 py-2 text-sm font-semibold text-neutral-100 hover:border-yellow-400 hover:text-yellow-300 active:scale-95 transition-all"
+        >
+          <span className="text-lg">←</span>
+          <span>Volver</span>
+        </button>
+      </div>
+
+      {/* Imagen del Producto */}
       <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950">
         <Image
-          src={product.image || PRODUCT_PLACEHOLDER_IMAGE}
+          src={currentImage}
           alt={product.name}
           fill
           className="object-cover"
@@ -153,19 +231,61 @@ export default function ProductDetailPage() {
       {/* Info */}
       <div className="flex flex-col justify-between">
         <div>
+          {/* Nombre del producto */}
           <h1 className="text-3xl font-bold mb-3">{product.name}</h1>
+
+          {/* Details Una descripcion detallada del producto */}
           <p className="text-neutral-400 text-sm mb-4 leading-relaxed">
-            {product.details || product.desc || "Producto de la colección SkaterShop."}
+            {product.details ||
+              product.desc ||
+              "Producto de la colección SkaterShop."}
           </p>
+
+          {/* Precio */}
           <p className="text-yellow-400 font-bold text-xl mb-6">
             €{product.price.toFixed(2)}
           </p>
 
+          {/* Colores disponibles (chips visuales) */}
+          {product.colors &&
+            product.colors.length > 0 &&
+            product.isClothing && (
+              <div className="mb-6 flex items-center gap-2">
+                <span className="text-sm text-neutral-300 uppercase tracking-wide">
+                  Colores:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {product.colors.slice(0, 5).map((c) => (
+                    <button
+                      type="button"
+                      key={c.name}
+                      onClick={() => handleSelectColor(c.name)}
+                      className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border ring-1 ${
+                        selectedColorName === c.name
+                          ? "border-yellow-400 ring-yellow-400 scale-110"
+                          : "border-neutral-700 ring-black/40"
+                      } transition-transform`}
+                      style={{
+                        backgroundColor: cssColorFromName(c.name),
+                      }}
+                      title={c.name}
+                    />
+                  ))}
+
+                  {product.colors.length > 5 && (
+                    <span className="text-[10px] text-neutral-400">
+                      + {product.colors.length - 5}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
           {/* Selector de tallas */}
           {hasSizes && (
             <div className="mb-6">
-              <span className="block text-sm text-neutral-300 mb-2">
-                Talla:
+              <span className="block text-sm text-neutral-300 uppercase mb-2">
+                Tallas:
               </span>
               <div className="flex flex-wrap gap-2">
                 {product.sizes!.map((size) => (
@@ -192,7 +312,7 @@ export default function ProductDetailPage() {
           )}
 
           {/* Guía de tallas (si existe) */}
-          {product.sizeGuide ? (
+          {product.isClothing && product.sizeGuide ? (
             <div className="mt-4 bg-neutral-900/40 border border-neutral-800 rounded-lg p-3">
               <p className="text-xs text-neutral-300 font-semibold mb-2">
                 Guía de tallas / medidas
@@ -202,10 +322,56 @@ export default function ProductDetailPage() {
               </pre>
             </div>
           ) : null}
+
+          {/* Cantidad Disponible por tallas */}
+          {hasSizes && (
+            <div className="mb-6 mt-4 flex items-center gap-2">
+              <span className="text-sm text-neutral-300 uppercase tracking-wide">
+                Disp:
+              </span>
+
+              <div className="flex items-center gap-1.5">
+               
+                Hacer Esta Parte
+              
+              </div>
+              
+            </div>
+          )}
+
+
+
+
+
+
+
         </div>
 
         {/* Acciones */}
         <div className="mt-6 flex flex-wrap gap-3 items-center">
+          {/* Selector de cantidad */}
+          <div className="inline-flex items-center rounded-full border border-neutral-700 bg-neutral-900/80 px-3 py-2 text-sm">
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(-1)}
+              className="w-7 h-7 flex items-center justify-center rounded-full border border-neutral-700 hover:border-yellow-400 hover:text-yellow-300 transition"
+              aria-label="Disminuir cantidad"
+            >
+              −
+            </button>
+            <span className="mx-3 min-w-[1.5rem] text-center font-semibold">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(1)}
+              className="w-7 h-7 flex items-center justify-center rounded-full border border-neutral-700 hover:border-yellow-400 hover:text-yellow-300 transition"
+              aria-label="Aumentar cantidad"
+            >
+              +
+            </button>
+          </div>
+
           <button
             onClick={handleAddToCart}
             disabled={added && !hasSizes}

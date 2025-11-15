@@ -31,7 +31,7 @@ export default function AdminSettingsPage() {
     setAdminKey(k || DEFAULT_ADMIN_KEY);
   }, []);
 
-  // leer qué backend está configurado en el server
+  // leer qué backend externo está configurado en el server (SKATERSHOP_* env)
   useEffect(() => {
     (async () => {
       try {
@@ -74,13 +74,68 @@ export default function AdminSettingsPage() {
     }
   }
 
+  // Etiqueta legible para la fuente actual
+  const sourceLabel =
+    mode === "auto"
+      ? source === "local"
+        ? "Automático (BD caída → Local)"
+        : "Automático (BD / Prisma)"
+      : source === "api"
+      ? "API externa"
+      : source === "local"
+      ? "Local (Zustand)"
+      : "BD (Prisma/Postgres)";
+
+  // Descripciones del backend ACTIVO según la fuente
+  const activeProductsBackend =
+    mode === "auto"
+      ? source === "local"
+        ? "Local (Zustand / memoria) — lectura desde store local"
+        : "BD (Prisma/Postgres) — /api/products (GET, POST, DELETE)"
+      : source === "db"
+      ? "BD (Prisma/Postgres) — /api/products (GET, POST, DELETE)"
+      : source === "api"
+      ? remoteInfo?.productsUrl
+        ? `API externa — ${remoteInfo.productsUrl}`
+        : "API externa — no configurada (productsUrl vacío)"
+      : "Local (Zustand / memoria) — lectura desde store local";
+
+  const activeSalesBackendGet =
+    mode === "auto"
+      ? source === "local"
+        ? "Local (Zustand / memoria) — resumen de ventas local"
+        : "BD (Prisma/Postgres) — /api/sales (GET, opcionalmente /api/sales/[id])"
+      : source === "db"
+      ? "BD (Prisma/Postgres) — /api/sales (GET, opcionalmente /api/sales/[id])"
+      : source === "api"
+      ? remoteInfo?.salesUrl
+        ? `API externa — ${remoteInfo.salesUrl}`
+        : "API externa — no configurada (salesUrl vacío)"
+      : "Local (Zustand / memoria) — resumen de ventas local";
+
+  const activeSalesBackendPost =
+    mode === "auto"
+      ? source === "local"
+        ? "Local (Zustand / memoria) — las ventas no se persisten en servidor"
+        : "BD (Prisma/Postgres) — /api/sales (POST, crea venta en BD)"
+      : source === "db"
+      ? "BD (Prisma/Postgres) — /api/sales (POST, crea venta en BD)"
+      : source === "api"
+      ? remoteInfo?.salesPostUrl
+        ? `API externa — ${remoteInfo.salesPostUrl}`
+        : remoteInfo?.salesUrl
+        ? `API externa — ${remoteInfo.salesUrl} (POST)`
+        : "API externa — no configurada (salesPostUrl vacío)"
+      : "Local (Zustand / memoria) — las ventas no se persisten en servidor";
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Ajustes del panel</h1>
         <p className="text-sm text-neutral-400">
-          Controla la fuente de datos, el modo de trabajo y la clave del administrador.
+          Controla la fuente de datos, el modo de trabajo y la clave del
+          administrador.
         </p>
       </div>
 
@@ -88,12 +143,18 @@ export default function AdminSettingsPage() {
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
         <h2 className="text-lg font-semibold text-white">Modo de datos</h2>
         <p className="text-sm text-neutral-400">
-          En <b>automático</b> el panel intenta usar la API y, si falla, cambia a local.
+          En <b>automático</b> el panel intenta usar la{" "}
+          <b>BD (Prisma/Postgres)</b> vía <code>/api/products</code> y{" "}
+          <code>/api/sales</code>. Si falla, cambia a datos locales (Zustand).
           En <b>forzado</b> usará siempre la fuente que elijas abajo.
         </p>
         <div className="flex gap-3">
           <button
-            onClick={() => setMode("auto")}
+            onClick={() => {
+              setMode("auto");
+              // 🔥 al volver a automático, retomamos BD como fuente base
+              setSource("db");
+            }}
             className={`px-3 py-2 rounded-md text-sm border ${
               mode === "auto"
                 ? "bg-yellow-400 text-black border-yellow-400"
@@ -122,7 +183,21 @@ export default function AdminSettingsPage() {
         <p className="text-sm text-neutral-400">
           Solo puedes cambiar la fuente cuando el modo es forzado.
         </p>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          {/* BD / Prisma */}
+          <button
+            onClick={() => setSource("db")}
+            disabled={mode !== "force"}
+            className={`px-3 py-2 rounded-md text-sm border ${
+              source === "db"
+                ? "bg-emerald-500 text-black border-emerald-500"
+                : "bg-neutral-950 border-neutral-700 text-neutral-200"
+            } ${mode !== "force" ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            BD (Prisma/Postgres)
+          </button>
+
+          {/* API externa */}
           <button
             onClick={() => setSource("api")}
             disabled={mode !== "force"}
@@ -134,6 +209,8 @@ export default function AdminSettingsPage() {
           >
             API
           </button>
+
+          {/* Local / Zustand */}
           <button
             onClick={() => setSource("local")}
             disabled={mode !== "force"}
@@ -146,19 +223,46 @@ export default function AdminSettingsPage() {
             Local (Zustand)
           </button>
         </div>
-        <p className="text-xs text-neutral-500">Fuente actual: {source}</p>
+
+        <p className="text-xs text-neutral-500">Fuente actual: {sourceLabel}</p>
 
         {lastError ? (
           <p className="text-xs text-red-400 mt-1">
-            Último error de API: <span className="font-mono">{lastError}</span>
+            Último error de API:{" "}
+            <span className="font-mono break-all">{lastError}</span>
           </p>
         ) : null}
 
-        {/* Info del backend real configurado */}
+        {/* Backend ACTIVO según la fuente */}
+        <div className="mt-4 border-t border-neutral-800 pt-3 space-y-1">
+          <p className="text-[11px] text-neutral-400">
+            <span className="font-semibold text-neutral-200">
+              Backend productos (activo):
+            </span>{" "}
+            <span className="break-all">{activeProductsBackend}</span>
+          </p>
+          <p className="text-[11px] text-neutral-400">
+            <span className="font-semibold text-neutral-200">
+              Backend ventas (GET, activo):
+            </span>{" "}
+            <span className="break-all">{activeSalesBackendGet}</span>
+          </p>
+          <p className="text-[11px] text-neutral-400">
+            <span className="font-semibold text-neutral-200">
+              Backend ventas (POST, activo):
+            </span>{" "}
+            <span className="break-all">{activeSalesBackendPost}</span>
+          </p>
+        </div>
+
+        {/* Configuración de API externa (informativo) */}
         {remoteInfo ? (
           <div className="mt-3 border-t border-neutral-800 pt-3 space-y-1">
+            <p className="text-[11px] text-neutral-500 font-semibold">
+              Configuración de API externa (SKATERSHOP_*):
+            </p>
             <p className="text-[11px] text-neutral-400">
-              Backend productos:{" "}
+              Backend productos (API externa):{" "}
               {remoteInfo.productsUrl ? (
                 <span className="text-neutral-200 break-all">
                   {remoteInfo.productsUrl}
@@ -168,7 +272,7 @@ export default function AdminSettingsPage() {
               )}
             </p>
             <p className="text-[11px] text-neutral-400">
-              Backend ventas (GET):{" "}
+              Backend ventas GET (API externa):{" "}
               {remoteInfo.salesUrl ? (
                 <span className="text-neutral-200 break-all">
                   {remoteInfo.salesUrl}
@@ -178,7 +282,7 @@ export default function AdminSettingsPage() {
               )}
             </p>
             <p className="text-[11px] text-neutral-400">
-              Backend ventas (POST):{" "}
+              Backend ventas POST (API externa):{" "}
               {remoteInfo.salesPostUrl ? (
                 <span className="text-neutral-200 break-all">
                   {remoteInfo.salesPostUrl}
@@ -197,7 +301,9 @@ export default function AdminSettingsPage() {
 
       {/* Clave de admin */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold text-white">Clave de administrador</h2>
+        <h2 className="text-lg font-semibold text-white">
+          Clave de administrador
+        </h2>
         <p className="text-sm text-neutral-400">
           Esta clave se guarda en este navegador y la usa el login del admin.
         </p>
@@ -219,7 +325,8 @@ export default function AdminSettingsPage() {
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
         <h2 className="text-lg font-semibold text-white">Datos de ejemplo</h2>
         <p className="text-sm text-neutral-400">
-          Carga en tu store local los productos que haya ahora mismo en /api/products.
+          Carga en tu store local los productos que haya ahora mismo en
+          /api/products.
         </p>
         <button
           onClick={handleSeedProducts}

@@ -104,6 +104,23 @@ export default function CartPage() {
                         Talla: {it.size}
                       </p>
                     )}
+
+                    {/* Color del producto (si existe) */}
+
+                    {it.colorName && (
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-300">
+                        <span
+                          className="inline-block w-3.5 h-3.5 rounded-full border border-neutral-700"
+                          style={{
+                            backgroundColor: it.colorName
+                              ? it.colorName.toLowerCase().replace(/\s+/g, "")
+                              : "#333",
+                          }}
+                        />
+                        <span className="text-neutral-400">{it.colorName}</span>
+                      </div>
+                    )}
+
                     <p className="text-neutral-400 text-sm leading-snug">
                       €{unitPrice.toFixed(2)} c/u
                     </p>

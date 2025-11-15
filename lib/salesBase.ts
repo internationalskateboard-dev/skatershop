@@ -19,7 +19,7 @@ import type { SaleRecord } from "./types";
 
 export const salesBase: SaleRecord[] = [
   {
-    id: "sale-seed-1",
+    id: "tee-skull",
     createdAt: "2024/11/23",
     items: [
       {
