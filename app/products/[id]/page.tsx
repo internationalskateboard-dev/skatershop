@@ -197,7 +197,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Imagen del Producto */}
-      <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950">
+      <div className="relative w-full h-full aspect-[4/5]  rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950">
         <Image
           src={currentImage}
           alt={product.name}

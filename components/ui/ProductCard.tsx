@@ -176,7 +176,7 @@ const chosenColorName =
       <Link href={`/products/${product.id}`}>
 
         {/* Imagen del producto */}
-        <div className="relative w-full aspect-[6/5] bg-neutral-950">
+        <div className="relative w-full h-full aspect-[4/5] bg-neutral-950">
           <Image
             src={currentImage || PRODUCT_PLACEHOLDER_IMAGE}
             alt={product.name}
