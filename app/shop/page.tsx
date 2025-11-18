@@ -43,7 +43,7 @@ function ShopPageWithContext() {
 
   useEffect(() => {
     // Pequeño delay para que se vea el estado de carga
-    const t = setTimeout(() => setLoading(false), 400);
+    const t = setTimeout(() => setLoading(false), 900);
     return () => clearTimeout(t);
   }, [products]);
 
@@ -51,6 +51,7 @@ function ShopPageWithContext() {
     <ClientOnly>
       {/* <div className="text-white bg-neutral-950 min-h-screen"> */}
       <div className="text-white bg-neutral-900 min-h-screen">
+        
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-6">
           {/* Header de la tienda */}
           <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
@@ -102,12 +103,12 @@ function ShopPageWithContext() {
             </div>
           </section>
 
-          {/* Estados de carga / vacío / lista */}
+          {/* Estados de carga / vacío / lista Falta corregir para cuando loading sea false! */}
           {loading ? (
             <p className="text-neutral-500 text-sm mt-6">
-              Cargando productos...
+              Cargando productos... 
             </p>
-          ) : products.length === 0 ? (
+          ) : loading! && products.length === 0 ? (
             <p className="text-neutral-500 text-sm mt-6">
               No hay productos disponibles todavía.
             </p>

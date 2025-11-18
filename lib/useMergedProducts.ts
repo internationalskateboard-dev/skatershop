@@ -70,6 +70,7 @@ function mergeBaseAndLocal(base: Product[], local: Product[]): Product[] {
 }
 
 export default function useMergedProducts(): UseMergedProductsResult {
+  
   const adminProducts = useProductStore((s) => s.products);
   const { source, mode, reportApiSuccess, reportApiError } =
     useAdminDataSource();

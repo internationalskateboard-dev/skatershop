@@ -305,7 +305,7 @@ export default function AdminProductList({
                           p.sizes.length > 0 ? (
                             <span>{p.sizes.join(", ")}</span>
                           ) : (
-                            <span className="text-neutral-600">—</span>
+                            <span className="text-neutral-600">{p.sizes}</span>
                           )}
                         </td>
 

@@ -7,7 +7,7 @@
  * - Muestra imagen, nombre, detalles, precio
  * - Maneja tallas
  * - Sincroniza talla, cantidad y color con el carrito
- * 
+ *
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -22,26 +22,34 @@ import type { Product } from "@/lib/types";
 type ToastState = { show: boolean; kind: "success" | "error"; text: string };
 
 export default function ProductDetailPage() {
-  const router = useRouter();
 
+  // Estado local de carga para mostrar "Cargando..."
+  const [loading, setLoading] = useState(true);
+  //
+  const router = useRouter();
+  //
   const params = useParams();
+
   // en Next 13/14 con app router, params.id puede venir como string o string[]
   const id = Array.isArray(params?.id) ? params.id[0] : (params?.id as string);
 
+  // Define el objeto productos
   const { products } = useMergedProducts();
 
+  // Define los metodos para administrar los datos que se almacenan en el carrito!
   const { cart, addToCart, setItemSize } = useCartStore((s) => ({
     cart: s.cart,
     addToCart: s.addToCart,
     setItemSize: s.setItemSize,
   }));
 
-  // buscar producto en el array unificado
+  // buscar producto en el array unificado de la base (No comprendo aun esta funcion)
   const product = useMemo<Product | undefined>(
     () => products.find((p) => p.id === id),
     [products, id]
   );
 
+  // Variables de estado
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
   const [toast, setToast] = useState<ToastState>({
@@ -54,75 +62,45 @@ export default function ProductDetailPage() {
     null
   );
 
+  // Definicion de objeto Notificaciones libreria (...?)
   const showToast = (kind: ToastState["kind"], text: string, ms = 2200) => {
     setToast({ show: true, kind, text });
     window.setTimeout(() => setToast((t) => ({ ...t, show: false })), ms);
   };
 
-  // cuando cambia el producto o el carrito → sincronizar estado local
+  /* ------------------------------------------------------ */
+  // Entra cuando cambia el producto o el carrito → sincronizar estado local
   useEffect(() => {
+    //
     if (!product) return;
-
-    const inCart = cart.find((i) => i.id === product.id);
-
-    // tallas
-    if (Array.isArray(product.sizes) && product.sizes.length === 1) {
+    // Selecciona la primera talla por defecto
+    if (Array.isArray(product.sizes) && product.sizes.length >= 1) {
       setSelectedSize(product.sizes[0]);
-    } else {
-      setSelectedSize(inCart?.size ?? null);
     }
 
-    if (inCart) {
-      setAdded(true);
-
-      // cantidad
-      if (typeof inCart.qty === "number") {
-        setQuantity(inCart.qty);
-      } else {
-        setQuantity(1);
-      }
-
-      // color: si el carrito tiene, lo usamos; si no, primer color
-      if (inCart.colorName) {
-        setSelectedColorName(inCart.colorName);
-      } else if (product.colors && product.colors.length > 0) {
-        setSelectedColorName(product.colors[0].name);
-      } else {
-        setSelectedColorName(null);
-      }
-    } else {
-      setAdded(false);
-      setQuantity(1);
-
-      // color por defecto cuando no está en carrito
-      if (product.colors && product.colors.length > 0) {
-        setSelectedColorName(product.colors[0].name);
-      } else {
-        setSelectedColorName(null);
-      }
+    if (Array.isArray(product.colors) && product.colors.length >= 1) {
+      setSelectedColorName(product.colors[0].name);
     }
 
-    // ocultar toast cuando cambie de producto
-    setToast((t) => ({ ...t, show: false }));
   }, [product, cart]);
+  /* ------------------------------------------------------ */
 
   // helper para convertir el nombre del color en algo que entienda CSS
   const cssColorFromName = (name: string) =>
     name.toLowerCase().replace(/\s+/g, "");
 
-  // imagen actual según el color seleccionado (o la del producto)
+  // imagen actual según el color seleccionado (o la del producto) (Revisar si es solo local)
   const currentImage = useMemo(() => {
+    
     if (!product) return PRODUCT_PLACEHOLDER_IMAGE;
 
     const baseImage = product.image || PRODUCT_PLACEHOLDER_IMAGE;
 
     if (product.colors && product.colors.length > 0) {
-      const activeName =
-        selectedColorName ?? product.colors[0]?.name ?? null;
+      const activeName = selectedColorName ?? product.colors[0]?.name ?? null;
 
       const activeColor =
-        (activeName &&
-          product.colors.find((c) => c.name === activeName)) ||
+        (activeName && product.colors.find((c) => c.name === activeName)) ||
         product.colors[0];
 
       return activeColor?.image || baseImage;
@@ -131,11 +109,14 @@ export default function ProductDetailPage() {
     return baseImage;
   }, [product, selectedColorName]);
 
-  // si no se encontró el producto
+  // si no se encontró el producto (Revisar si es solo local)
+  // Falta Revisar esta parte para colocar cargando mientras busca el producto.
   if (!product) {
     return (
       <div className="text-white text-center py-20">
-        <p className="text-neutral-400 mb-6">Producto no encontrado.</p>
+        <p className="text-neutral-400 mb-6">
+          Producto no encontrado. Revisar Para poner condicion Cargando...
+        </p>
         <Link
           href="/shop"
           className="text-sm bg-yellow-400 text-black font-semibold py-2 px-4 rounded-xl hover:bg-yellow-300 transition"
@@ -145,17 +126,13 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-
+  // Para verificar si tiene medidas el producto
   const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
 
+  // Agrega la talla en el carrito al seleccionar una medida o talla.
   const handleSelectSize = (size: string) => {
+    // 
     setSelectedSize(size);
-    // si ya estaba en carrito → actualizamos también en el store
-    const inCart = cart.find((i) => i.id === product.id);
-    if (inCart) {
-      setItemSize(product.id, size);
-      showToast("success", "Talla cambiada en el carrito ✅");
-    }
   };
 
   // cambiar color (solo afecta al estado local y a la imagen / addToCart)
@@ -172,43 +149,44 @@ export default function ProductDetailPage() {
     });
   };
 
+  // Accion al hacer click Añadir o si ya esta en el carrito (Corregir si ya esta en el carrito esa parte se va a modificar)
   const handleAddToCart = () => {
-    // si tiene tallas pero no hay ninguna seleccionada
-    if (hasSizes && !selectedSize) {
-      showToast("error", "Selecciona una talla antes de añadir.");
-      return;
-    }
+  if (hasSizes && !selectedSize) {
+    showToast("error", "Selecciona una talla antes de añadir.");
+    return;
+  }
 
-    // si tiene tallas y no se seleccionó pero solo tiene 1 → usa esa
-    const chosenSize =
-      selectedSize ||
-      (Array.isArray(product.sizes) && product.sizes.length === 1
-        ? product.sizes[0]
-        : undefined);
+  const chosenSize =
+    selectedSize ||
+    (Array.isArray(product.sizes) && product.sizes.length === 1
+      ? product.sizes[0]
+      : undefined);
 
-    const chosenColorName =
-      selectedColorName ||
-      (product.colors && product.colors.length > 0
-        ? product.colors[0].name
-        : undefined);
+  const chosenColorName =
+    selectedColorName ||
+    (product.colors && product.colors.length > 0
+      ? product.colors[0].name
+      : undefined);
 
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      qty: quantity,
-      image: currentImage,
-      size: chosenSize,
-      colorName: chosenColorName, // 👈 se guarda en el carrito
-    });
+  addToCart({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    qty: quantity,
+    image: currentImage,
+    size: chosenSize,
+    colorName: chosenColorName,
+  });
 
-    setAdded(true);
-    showToast("success", "Producto añadido al carrito 🛒");
-  };
+  setAdded(true);
+  showToast("success", "Producto añadido al carrito 🛒");
+};
 
+
+  // --------------------------------------------------------------------
   return (
-    <div className="relative max-w-5xl mx-auto py-10 px-6 text-white grid md:grid-cols-2 gap-8">
-      <div className="md:col-span-2 mb-4">
+    <div className="relative max-w-5xl mx-auto px-6 text-white grid md:grid-cols-2 gap-8">
+      <div className="md:col-span-2 mb-0">
         <button
           onClick={() => router.back()}
           className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/70 px-4 py-2 text-sm font-semibold text-neutral-100 hover:border-yellow-400 hover:text-yellow-300 active:scale-95 transition-all"
@@ -235,14 +213,14 @@ export default function ProductDetailPage() {
           <h1 className="text-3xl font-bold mb-3">{product.name}</h1>
 
           {/* Details Una descripcion detallada del producto */}
-          <p className="text-neutral-400 text-sm mb-4 leading-relaxed">
+          <p className="text-neutral-400 text-sm mb-2 leading-relaxed">
             {product.details ||
               product.desc ||
               "Producto de la colección SkaterShop."}
           </p>
 
           {/* Precio */}
-          <p className="text-yellow-400 font-bold text-xl mb-6">
+          <p className="text-yellow-400 font-bold text-xl mb-2">
             €{product.price.toFixed(2)}
           </p>
 
@@ -250,16 +228,17 @@ export default function ProductDetailPage() {
           {product.colors &&
             product.colors.length > 0 &&
             product.isClothing && (
-              <div className="mb-6 flex items-center gap-2">
+              <div className="mb-3 flex items-center gap-2">
                 <span className="text-sm text-neutral-300 uppercase tracking-wide">
                   Colores:
                 </span>
+
                 <div className="flex items-center gap-1.5">
                   {product.colors.slice(0, 5).map((c) => (
                     <button
                       type="button"
                       key={c.name}
-                      onClick={() => handleSelectColor(c.name)}
+                      onClick={() => handleSelectColor(c.name)} // Verificar el si solo afecta el estado local de data
                       className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border ring-1 ${
                         selectedColorName === c.name
                           ? "border-yellow-400 ring-yellow-400 scale-110"
@@ -283,31 +262,35 @@ export default function ProductDetailPage() {
 
           {/* Selector de tallas */}
           {hasSizes && (
-            <div className="mb-6">
-              <span className="block text-sm text-neutral-300 uppercase mb-2">
-                Tallas:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {product.sizes!.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => handleSelectSize(size)}
-                    className={`px-3 py-1 rounded-lg text-sm font-semibold border transition ${
-                      selectedSize === size
-                        ? "bg-yellow-400 text-black border-yellow-400"
-                        : "border-neutral-700 text-neutral-300 hover:border-yellow-400 hover:text-yellow-400"
-                    }`}
-                    aria-pressed={selectedSize === size}
-                  >
-                    {size}
-                  </button>
-                ))}
+            <div className="mb-2">
+              <div className="flex items-center gap-2 text-sm text-neutral-300 uppercase">
+                <span>Tallas:</span>
+
+                <div className="flex items-center gap-1.5">
+                  {product.sizes!.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => handleSelectSize(size)}
+                      className={`px-3 py-1 rounded-lg font-semibold border transition ${
+                        selectedSize === size
+                          ? "bg-yellow-400 text-black border-yellow-400"
+                          : "border-neutral-700 text-neutral-300 hover:border-yellow-400 hover:text-yellow-400"
+                      }`}
+                      aria-pressed={selectedSize === size}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {!selectedSize && !added && (
-                <p className="mt-2 text-xs text-neutral-500">
-                  Elige una talla para añadir al carrito.
-                </p>
-              )}
+
+              <div className="block text-neutral-500">
+                {!selectedSize && !added && (
+                  <p className="mt-2 text-xs">
+                    Elige una talla para añadir al carrito.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -324,27 +307,33 @@ export default function ProductDetailPage() {
           ) : null}
 
           {/* Cantidad Disponible por tallas */}
-          {hasSizes && (
-            <div className="mb-6 mt-4 flex items-center gap-2">
+          {hasSizes && product.colors && product.colors.length > 0 ? (
+            <div className="mb-2 mt-4 flex items-center gap-2">
               <span className="text-sm text-neutral-300 uppercase tracking-wide">
                 Disp:
               </span>
 
               <div className="flex items-center gap-1.5">
-               
-                Hacer Esta Parte
-              
+                Tiene color y talla
               </div>
-              
+            </div>
+          ) : (
+            <div className="mb-2 mt-2 flex items-center gap-2">
+              <span className="text-sm text-neutral-300 uppercase tracking-wide">
+                Disp:
+              </span>
+
+              {Number(product.stock) > 0 ? (
+                <div className="flex items-center gap-1.5 text-green-500">
+                  {product.stock}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-red-500">
+                  {product.stock}
+                </div>
+              )}
             </div>
           )}
-
-
-
-
-
-
-
         </div>
 
         {/* Acciones */}
@@ -371,26 +360,27 @@ export default function ProductDetailPage() {
               +
             </button>
           </div>
+          {/* Boton Añadir */}
+<button
+              onClick={handleAddToCart}
+              disabled={added && !hasSizes}
+              className={`${
+                added && !hasSizes
+                  ? "bg-neutral-800 text-neutral-400 cursor-not-allowed border border-neutral-700"
+                  : "bg-yellow-400 text-black hover:bg-yellow-300"
+              } font-bold py-3 px-6 rounded-xl active:scale-95 transition uppercase tracking-wide`}
+              aria-live="polite">
+                Añadir 🛒
+            </button>
 
-          <button
-            onClick={handleAddToCart}
-            disabled={added && !hasSizes}
-            className={`${
-              added && !hasSizes
-                ? "bg-neutral-800 text-neutral-400 cursor-not-allowed border border-neutral-700"
-                : "bg-yellow-400 text-black hover:bg-yellow-300"
-            } font-bold py-3 px-6 rounded-xl active:scale-95 transition uppercase tracking-wide`}
-            aria-live="polite"
-          >
-            {added ? "Ya en carrito ✅" : "Añadir al carrito"}
-          </button>
+            {/* Si ya fue agregado  este articulo Ver que se puede hacer o borrar al depurar */}
+          {!added ? (
+            <></>
+          ) : (
+            <></>
+          )}
 
-          <Link
-            href="/cart"
-            className="text-sm font-semibold text-neutral-300 hover:text-yellow-400 transition flex items-center"
-          >
-            Ver carrito →
-          </Link>
+          
 
           {/* Pagar: solo si ya se añadió */}
           {added && (

@@ -47,13 +47,16 @@ export default function FloatingCart() {
 
         <ul className="mt-3 max-h-40 overflow-y-auto space-y-2 pr-1">
           {cart.map((item) => (
-            <li
-              key={item.id}
+            <li           
+              key={`${item.id}-${item.size ?? "nosize"}-${item.colorName ?? "nocolor"}`}
               className="flex justify-between text-xs text-neutral-300 border-b border-neutral-800 pb-2"
             >
               <div className="pr-2">
                 <p className="font-semibold text-white leading-snug">
                   {item.name}
+                </p>
+                <p className="font-semibold text-white leading-snug">
+                  {item.size} - {item.colorName}
                 </p>
                 <p className="text-neutral-500">
                   {item.qty} × €{item.price.toFixed(2)}

@@ -206,10 +206,13 @@ export default function AdminProductForm({
             };
           })
         : [];
-    // ✅ Solo guardamos tallas si ES ropa
-    const sizesToSave = form.isClothing ? form.selectedSizes : [];
 
-    // ✅ Solo guardamos guía de tallas si ES ropa
+
+        
+    // ✅ Solo guardamos Varias tallas si es ropa si no es ONE SIZE.
+    const sizesToSave = form.isClothing ? form.selectedSizes : ["ONE SIZE"];
+
+    // ✅ Solo guardamos guía de tallas si es ropa.
     const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
 
     // Cargamos el objeto con los Datos Que van a la DB
@@ -392,6 +395,10 @@ export default function AdminProductForm({
                     </button>
                   );
                 })}
+
+
+
+
               </div>
               <p className="text-[11px] text-neutral-500 mt-2">
                 Si seleccionas <strong>ONE SIZE</strong>, se desactivarán todas
@@ -433,7 +440,7 @@ export default function AdminProductForm({
                 />
               ))}
           </>
-        )  : <> {/* CAMPOS SOLO PARA LO QUE NO ES ROPA */} <p className="text-neutral-400 text-sm">Este producto no es ropa analizar la logica para poder colocar 3 imagenes mas para el slider  .</p> </> 
+        )  : <> {/* CAMPOS SOLO PARA LO QUE NO ES ROPA */ } <p className="text-neutral-400 text-sm">Este producto no es ropa analizar la logica para poder colocar 3 imagenes mas para el slider  .</p> </> 
         }
 
         {/* submit */}
