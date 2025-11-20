@@ -40,6 +40,7 @@ export function mapDbProductToProduct(db: any): Product {
 
     sizeGuide: db.sizeGuide ?? undefined,
     isClothing: Boolean(db.isClothing),
+    variantStock: (db.variantStock as any) ?? [], // 👈 importante
   };
 }
 
@@ -54,8 +55,14 @@ export function mapProductToDbData(p: Product) {
 
     // Json? → Prisma admite arrays/objetos sin problema
     sizesJson: p.sizes ?? null,
-    stock: p.stock ?? null,
     colorsJson: p.colors ?? null,
+
+    // nuevo: guardamos también el JSON de variantes
+    variantStock: p.variantStock ?? null,
+
+    // stock total (en tu route ya lo calculamos antes de llamar al mapper)
+    stock: p.stock ?? null,
+
     sizeGuide: p.sizeGuide ?? null,
     isClothing: p.isClothing,
   };

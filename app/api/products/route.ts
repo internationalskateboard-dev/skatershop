@@ -49,7 +49,6 @@ export async function GET(req: Request) {
   } satisfies ProductsApiResponse);
 }
 
-
 // POST /api/products
 // Crea o actualiza producto en DB + memoria
 export async function POST(req: Request) {
@@ -63,18 +62,60 @@ export async function POST(req: Request) {
       );
     }
 
-    // Guardar en DB
-    const data = mapProductToDbData(body);
+    // ------------------------------------------------------------------
+    // 1) Normalizar variantStock que viene del formulario
+    // ------------------------------------------------------------------
+    const rawVariantStock = (body as any).variantStock ?? [];
+    const variantStock = Array.isArray(rawVariantStock)
+      ? rawVariantStock.map((v) => ({
+          size:
+            v.size === undefined || v.size === "" ? null : (v.size as string),
+          colorName:
+            v.colorName === undefined || v.colorName === ""
+              ? null
+              : (v.colorName as string),
+          stock: Number.isFinite(Number(v.stock)) ? Number(v.stock) : 0,
+        }))
+      : [];
 
+    // ------------------------------------------------------------------
+    // 2) Calcular stock total según la opción C:
+    //    - Si hay variantes → suma de los stock de las variantes
+    //    - Si NO hay variantes → usar body.stock (o 0)
+    // ------------------------------------------------------------------
+    const totalStock =
+      variantStock.length > 0
+        ? variantStock.reduce((acc, v) => acc + (v.stock || 0), 0)
+        : body.stock ?? 0;
+
+    // ------------------------------------------------------------------
+    // 3) Mapear Product -> datos para DB (manteniendo tu mapper)
+    //    y forzar stock + variantStock en el objeto data
+    // ------------------------------------------------------------------
+    let data = mapProductToDbData({
+      ...body,
+      stock: totalStock,
+    } as Product);
+
+    data = {
+      ...data,
+      stock: totalStock,
+      variantStock, // 👈 se guarda en la columna Json de Prisma
+    };
+
+    // Guardar en DB (upsert)
     await prisma.product.upsert({
       where: { id: body.id },
-      // 👇 aquí el cambio importante: data as any
       create: data as any,
       update: data as any,
     });
 
     // Mantener comportamiento actual en memoria (por compatibilidad)
-    const saved = upsertProductInMemory(body);
+    const saved = upsertProductInMemory({
+      ...body,
+      stock: totalStock,
+      variantStock,
+    });
 
     return NextResponse.json(saved, { status: 201 });
   } catch (err) {

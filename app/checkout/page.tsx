@@ -175,7 +175,7 @@ export default function CheckoutPage() {
               <ul className="space-y-3 text-sm">
                 {cart.map((it) => (
                   <li
-                    key={it.id}
+                    key={`${it.id}-${it.size ?? "nosize"}-${it.colorName ?? "nocolor"}`}
                     className="flex items-start justify-between border-b border-neutral-800 pb-3"
                   >
                     <div className="flex items-start gap-3">

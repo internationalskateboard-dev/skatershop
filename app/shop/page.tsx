@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ClientOnly from "@/components/layout/ClientOnly";
-import ProductCard from "@/components/ui/ProductCard";
+import ProductCard from "@/components/product/ProductCard/ProductCard";
 import useCartStore from "@/store/cartStore";
 import useMergedProducts from "@/lib/useMergedProducts";
 import {

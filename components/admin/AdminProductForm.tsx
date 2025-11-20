@@ -5,6 +5,7 @@ import useProductStore from "@/store/productStore";
 import useSalesStore from "@/store/salesStore";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import Image from "next/image";
+import type { VariantStockItem } from "@/lib/types";
 
 const DEFAULT_SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
 
@@ -43,6 +44,7 @@ export default function AdminProductForm({
     isClothing: false, // <- NUEVO
   });
 
+  const [variantStock, setVariantStock] = useState<VariantStockItem[]>([]);
   const [preview, setPreview] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [colorImages, setColorImages] = useState<ColorImage[]>([]);
@@ -81,22 +83,30 @@ export default function AdminProductForm({
         ? initialData.colors.map((c: any) => c.name).join(",")
         : "Negro,Blanco",
       sizeGuide: initialData.sizeGuide ?? "",
-      isClothing: Boolean(initialData.isClothing), // <- NUEVO: marcar si ya era ropa
+      isClothing: Boolean(initialData.isClothing),
     });
 
-    if (initialData.colors?.length) {
-      setColorImages(
-        initialData.colors.map((c: any) => ({
-          name: c.name,
-          image: c.image && !c.image.includes("...truncated") ? c.image : "",
-        }))
-      );
+    // hidratar variantes si existen
+    if (initialData.variantStock && initialData.variantStock.length > 0) {
+      setVariantStock(initialData.variantStock);
     } else {
-      setColorImages([]);
+      setVariantStock([]);
     }
 
-    setPreview(!isTruncated && initialData.image ? initialData.image : "");
+    // si quisieras hidratar imágenes por color, aquí iría esa lógica
+    // setColorImages(...)
   }, [initialData]);
+
+  // ⚙️ Cuando cambian las variantes, recalculamos el stock total (Opción C)
+  useEffect(() => {
+    if (variantStock.length > 0) {
+      const total = variantStock.reduce(
+        (acc, v) => acc + (v.stock || 0),
+        0
+      );
+      setForm((prev) => ({ ...prev, stock: String(total) }));
+    }
+  }, [variantStock]);
 
   function handleChangeTextField(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -207,15 +217,18 @@ export default function AdminProductForm({
           })
         : [];
 
-
-        
-    // ✅ Solo guardamos Varias tallas si es ropa si no es ONE SIZE.
+    // ✅ Solo guardamos Varias tallas si es ropa; si no, ONE SIZE
     const sizesToSave = form.isClothing ? form.selectedSizes : ["ONE SIZE"];
 
-    // ✅ Solo guardamos guía de tallas si es ropa.
+    // ✅ Solo guardamos guía de tallas si es ropa
     const sizeGuideToSave = form.isClothing ? form.sizeGuide.trim() : "";
 
-    // Cargamos el objeto con los Datos Que van a la DB
+    // stock total → suma de variantes si existen, si no usa campo stock
+    const totalFromVariants =
+      variantStock.length > 0
+        ? variantStock.reduce((acc, v) => acc + (v.stock || 0), 0)
+        : parseInt(form.stock || "0", 10);
+
     const newProduct = {
       id: form.id.trim(),
       name: form.name.trim(),
@@ -224,10 +237,11 @@ export default function AdminProductForm({
       desc: form.desc.trim(),
       details: form.details.trim(),
       sizes: sizesToSave,
-      stock: parseInt(form.stock || "0", 10),
+      stock: totalFromVariants, // 👈 ahora sale de variantes si existen
       colors,
       sizeGuide: sizeGuideToSave,
-      isClothing: form.isClothing, // <- NUEVO: se guarda si es ropa o no
+      isClothing: form.isClothing,
+      variantStock: variantStock.length ? variantStock : undefined, // 👈 JSON de variantes
     };
 
     setSaving(true);
@@ -265,13 +279,52 @@ export default function AdminProductForm({
         stock: "1",
         colorsText: "",
         sizeGuide: "",
-        isClothing: false, // <- IMPORTANTE: al guardar queda desmarcado
+        isClothing: false,
       });
       setPreview("");
       setColorImages([]);
+      setVariantStock([]);
       setTimeout(() => setSaveMessage(null), 3500);
     }
   }
+
+  /** -------------------------------- */
+  const handleGenerateVariantStock = () => {
+    // tallas seleccionadas en el formulario
+    const sizes =
+      form.selectedSizes && form.selectedSizes.length ? form.selectedSizes : [];
+
+    // colores desde el textarea / input (ej: "Negro, Blanco")
+    const colorNames = form.colorsText
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const variants: VariantStockItem[] = [];
+
+    // ✅ Caso C: tallas + colores
+    if (sizes.length > 0 && colorNames.length > 0) {
+      sizes.forEach((size) => {
+        colorNames.forEach((colorName) => {
+          variants.push({ size, colorName, stock: 0 });
+        });
+      });
+    }
+    // ✅ Caso A: solo tallas
+    else if (sizes.length > 0) {
+      sizes.forEach((size) => {
+        variants.push({ size, stock: 0 });
+      });
+    }
+    // ✅ Caso B: solo colores
+    else if (colorNames.length > 0) {
+      colorNames.forEach((colorName) => {
+        variants.push({ colorName, stock: 0 });
+      });
+    }
+
+    setVariantStock(variants);
+  };
 
   return (
     <section className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
@@ -304,9 +357,14 @@ export default function AdminProductForm({
           type="number"
           placeholder="17.99"
         />
-        {/* Stock disponible */}
+
+        {/* Stock disponible (auto si hay variantes) */}
         <InputField
-          label="Stock disponible"
+          label={
+            variantStock.length
+              ? "Stock disponible (auto desde variantes)"
+              : "Stock disponible"
+          }
           name="stock"
           value={form.stock}
           onChange={handleChangeTextField}
@@ -395,16 +453,82 @@ export default function AdminProductForm({
                     </button>
                   );
                 })}
-
-
-
-
               </div>
               <p className="text-[11px] text-neutral-500 mt-2">
                 Si seleccionas <strong>ONE SIZE</strong>, se desactivarán todas
                 las demás.
               </p>
             </div>
+
+            <div className="md:col-span-2 flex items-center justify-between mt-2">
+              <p className="text-xs text-neutral-400">
+                Puedes generar stock por talla / color según lo seleccionado.
+              </p>
+              <button
+                type="button"
+                onClick={handleGenerateVariantStock}
+                className="text-xs bg-neutral-900 border border-neutral-700 px-3 py-1 rounded-md text-neutral-200 hover:border-yellow-400 hover:text-yellow-300 transition"
+              >
+                Generar stock por variante
+              </button>
+            </div>
+
+            {variantStock.length > 0 && (
+              <div className="md:col-span-2 mt-3 border border-neutral-800 rounded-lg p-3">
+                <p className="text-sm text-neutral-200 font-semibold mb-2">
+                  Stock por variante
+                </p>
+
+                <div className="space-y-2 text-xs">
+                  {variantStock.map((v, idx) => (
+                    <div
+                      key={`${v.size ?? "nosize"}-${
+                        v.colorName ?? "nocolor"
+                      }-${idx}`}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      {/* Descripción de la variante */}
+                      <div className="flex flex-col">
+                        <span className="text-neutral-300">
+                          {v.size && <strong>{v.size}</strong>}
+                          {v.size && v.colorName && " · "}
+                          {v.colorName && <span>{v.colorName}</span>}
+                          {!v.size && !v.colorName && (
+                            <span className="italic text-neutral-500">
+                              Sin talla / color
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Input de stock */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-400">Stock:</span>
+                        <input
+                          type="number"
+                          min={0}
+                          className="w-20 rounded bg-neutral-900 border border-neutral-700 px-2 py-1 text-right text-white text-xs focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
+                          value={v.stock}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value || "0", 10);
+                            setVariantStock((prev) =>
+                              prev.map((item, i) =>
+                                i === idx ? { ...item, stock: value } : item
+                              )
+                            );
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="mt-2 text-[11px] text-neutral-500">
+                  El stock total se calcula automáticamente sumando todas las
+                  variantes.
+                </p>
+              </div>
+            )}
 
             <TextareaField
               label="Guía / Medidas por talla (opcional)"
@@ -440,8 +564,15 @@ export default function AdminProductForm({
                 />
               ))}
           </>
-        )  : <> {/* CAMPOS SOLO PARA LO QUE NO ES ROPA */ } <p className="text-neutral-400 text-sm">Este producto no es ropa analizar la logica para poder colocar 3 imagenes mas para el slider  .</p> </> 
-        }
+        ) : (
+          <>
+            {/* CAMPOS SOLO PARA LO QUE NO ES ROPA */}
+            <p className="text-neutral-400 text-sm md:col-span-2">
+              Este producto no es ropa. Más adelante aquí puedes añadir imágenes
+              extra para el slider.
+            </p>
+          </>
+        )}
 
         {/* submit */}
         <div className="md:col-span-2 flex justify-end gap-3 items-center">
@@ -456,8 +587,6 @@ export default function AdminProductForm({
             <p className="text-xs text-neutral-300">{saveMessage}</p>
           )}
         </div>
-
- 
       </form>
     </section>
   );
