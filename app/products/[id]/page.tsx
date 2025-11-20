@@ -24,16 +24,34 @@ export default function ProductDetailPage() {
 
   const { products } = useMergedProducts();
 
+  // Buscar producto
   const product: Product | undefined = useMemo(
     () => products.find((p) => p.id === id),
     [products, id]
   );
 
-  // 📌 Si no existe → no renderizamos nada con hooks
+  // ------------------------------------------------------------
+  // ✔ Hooks SIEMPRE se ejecutan, aunque product sea undefined
+  // ------------------------------------------------------------
+
+  const variants = useProductVariants(product);
+  const cart = useProductCard(
+    product,
+    variants.stock,
+    variants.selectedSize,
+    variants.selectedColor,
+    variants.currentImage
+  );
+
+  // ------------------------------------------------------------
+  // ❗ UI condicional solo DESPUÉS de ejecutar hooks
+  // ------------------------------------------------------------
+
   if (!product) {
     return (
       <div className="text-white text-center py-20">
         <p className="text-neutral-400 mb-6">Producto no encontrado.</p>
+
         <Link
           href="/shop"
           className="text-sm bg-yellow-400 text-black py-2 px-4 rounded-xl hover:bg-yellow-300 transition"
@@ -44,31 +62,25 @@ export default function ProductDetailPage() {
     );
   }
 
-  // Hooks ahora SÍ seguros
-  const variants = useProductVariants(product);
-  const cart = useProductCard(
-    product,
-    variants.stock,
-    variants.selectedSize,
-    variants.selectedColor,
-    variants.currentImage
-  );
-
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
+  
   return (
-    <div className="relative max-w-6xl mx-auto px-6 text-white grid md:grid-cols-2 gap-6 mt-10 pb-24">
+    <div className="relative max-w-5xl mx-auto px-6 text-white grid md:grid-cols-2 gap-14 mt-12 pb-24">
 
       {/* Volver */}
       <div className="md:col-span-2 mb-2">
         <button
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/60 px-4 py-2 text-sm font-semibold text-neutral-200 hover:border-yellow-400 hover:text-yellow-300 active:scale-95 transition"
+          className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-semibold text-neutral-100 hover:border-yellow-400 hover:text-yellow-300 active:scale-95 transition"
         >
           <span className="text-lg">←</span> Volver
         </button>
       </div>
 
-      {/* Imagen grande estilo Zara */}
-      <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 shadow-[0_0_30px_rgba(0,0,0,0.4)]">
+      {/* Imagen */}
+      <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 shadow-xl">
         <Image
           src={variants.currentImage}
           alt={product.name}
@@ -77,61 +89,51 @@ export default function ProductDetailPage() {
         />
       </div>
 
-      {/* Información minimalista */}
-      <div className="flex flex-col gap-6 pt-4">
+      {/* Información del producto */}
+      <div className="flex flex-col justify-between">
 
-        {/* Título y descripción */}
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight mb-2">
-            {product.name}
-          </h1>
+        <div className="space-y-4">
 
-          <p className="text-neutral-500 text-sm leading-relaxed mb-4">
+          <h1 className="text-4xl font-bold">{product.name}</h1>
+
+          <p className="text-neutral-400 text-sm leading-relaxed">
             {product.details || product.desc || "Producto SkaterShop."}
           </p>
 
-          <p className="text-yellow-400 font-extrabold text-2xl">
+          <p className="text-yellow-400 font-bold text-2xl">
             €{product.price.toFixed(2)}
           </p>
-        </div>
 
-        {/* Colores */}
-        <div className="mt-2">
+          {/* Colores */}
           <ProductColors
             product={product}
             selectedColor={variants.selectedColor}
             selectedSize={variants.selectedSize}
             onSelect={variants.setSelectedColor}
           />
-        </div>
 
-        {/* Tallas */}
-        <div className="">
+          {/* Tallas */}
           <ProductSizes
             product={product}
             selectedSize={variants.selectedSize}
             selectedColor={variants.selectedColor}
             onSelect={variants.setSelectedSize}
           />
+
+          {/* Stock */}
+          <p className="text-sm text-neutral-400">
+            Stock disponible:{" "}
+            <span className="text-green-400 font-semibold">{variants.stock}</span>
+          </p>
         </div>
 
-        {/* Stock */}
-        <div className="text-neutral-400 text-sm">
-          Disponible:{" "}
-          <span className="text-green-400 font-semibold">
-            {variants.stock}
-          </span>
-        </div>
-
-        {/* Acciones minimal */}
-        <div className="flex flex-col gap-4 mt-4">
-
+        {/* Acciones */}
+        <div className="mt-10 flex flex-col gap-3">
           <ProductQuantity
             quantity={cart.quantity}
             onChange={cart.handleQuantityChange}
           />
 
-          {/* Botón Carrito estilo ZARA Premium */}
           <ProductAddButton
             onAdd={cart.handleAdd}
             qty={cart.alreadyInCartQty}
@@ -144,11 +146,11 @@ export default function ProductDetailPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed left-1/2 -translate-x-1/2 top-16 z-50 px-6 py-3 rounded-xl shadow-xl border backdrop-blur-md
+          className={`fixed left-1/2 -translate-x-1/2 top-16 z-50 px-4 py-3 rounded-xl shadow-xl border
             ${
               cart.toast.kind === "success"
-                ? "bg-green-900/80 border-green-600 text-green-200"
-                : "bg-red-900/80 border-red-600 text-red-200"
+                ? "bg-green-900/90 border-green-600 text-green-200"
+                : "bg-red-900/90 border-red-600 text-red-200"
             }`}
         >
           {cart.toast.text}
