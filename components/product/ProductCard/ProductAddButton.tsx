@@ -1,13 +1,24 @@
-import { CartIcon } from "@/components/icons/CartIcon";
+type Props = {
+  onAdd: () => void;
+  qty: number;
+};
 
-export function ProductAddButton({ onAdd, qty }: any) {
+export function ProductAddButton({ onAdd, qty }: Props) {
   return (
     <button
       onClick={onAdd}
-      className="flex items-center justify-center gap-2 rounded-full bg-yellow-400 text-black px-5 py-2.5 font-semibold text-sm shadow-lg hover:bg-yellow-300 active:scale-95"
+      className="
+        w-full flex items-center justify-center gap-2
+        rounded-full px-5 py-2.5 text-sm font-semibold
+        bg-yellow-400 text-black
+        shadow-[0_0_20px_rgba(250,204,21,0.4)]
+        hover:bg-yellow-300 active:scale-95 transition
+      "
     >
-      <CartIcon className="w-5 h-5" />
-      <span>Carrito ({qty})</span>
+      <span>Cart</span>
+      {qty > 0 && (
+        <span className="opacity-80">({qty})</span>
+      )}
     </button>
   );
 }

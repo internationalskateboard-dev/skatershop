@@ -6,7 +6,7 @@ import { getExistingItemQty } from "@/lib/utils/cart/cart";
 
 export function useProductCard(
   product?: Product,
-  stock: number = 0,
+  stock: number = 0, // FUTURO: stock aquí YA vendrá descontado (variantStock - soldMap)
   selectedSize: string | null = null,
   selectedColor: string | null = null,
   currentImage: string = ""

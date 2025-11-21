@@ -13,9 +13,7 @@ import { ProductQuantity } from "./ProductQuantity";
 import { ProductAddButton } from "./ProductAddButton";
 
 export default function ProductCard({ product }: { product: Product }) {
-
-  // console.log("PRODUCT JSON:", JSON.stringify(product, null, 2));
-
+  
   const {
     selectedSize,
     selectedColor,
@@ -25,19 +23,26 @@ export default function ProductCard({ product }: { product: Product }) {
     currentImage,
   } = useProductVariants(product);
 
-  const { quantity, handleQuantityChange, handleAdd, alreadyInCartQty, toast } =
-    useProductCard(product, stock, selectedSize, selectedColor, currentImage);
+  const {
+    quantity,
+    handleQuantityChange,
+    handleAdd,
+    alreadyInCartQty,
+    toast,
+  } = useProductCard(product, stock, selectedSize, selectedColor, currentImage);
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-gradient-to-b from-neutral-900 to-neutral-950 p-3">
+    <article className="h-auto group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 p-4 shadow-md hover:shadow-xl transition-all">
+
       {/* Toast */}
       {toast.show && (
         <div
-          className={`fixed left-1/2 -translate-x-1/2 top-16 z-50 px-4 py-3 rounded-xl shadow-xl border ${
-            toast.kind === "success"
-              ? "bg-green-900/90 border-green-600 text-green-200"
-              : "bg-red-900/90 border-red-600 text-red-200"
-          }`}
+          className={`fixed left-1/2 -translate-x-1/2 top-16 z-50 px-4 py-3 rounded-xl shadow-xl border
+            ${
+              toast.kind === "success"
+                ? "bg-green-900/90 border-green-600 text-green-200"
+                : "bg-red-900/90 border-red-600 text-red-200"
+            }`}
         >
           {toast.text}
         </div>
@@ -45,19 +50,35 @@ export default function ProductCard({ product }: { product: Product }) {
 
       {/* Imagen */}
       <Link href={`/products/${product.id}`}>
-        <ProductImage image={currentImage} name={product.name} />
+        <div className="rounded-xl overflow-hidden border border-neutral-800 aspect-[4/5] bg-neutral-900">
+          <ProductImage image={currentImage} name={product.name} />
+        </div>
       </Link>
 
-      {/* Detalles */}
-      <div className="mt-3">
-        <h3 className="text-base font-semibold">{product.name}</h3>
+      {/* Contenido */}
+      <div className="flex flex-col gap-3 mt-4">
 
-        {product.desc && (
-          <p className="text-neutral-400 text-sm line-clamp-2">
-            {product.desc}
-          </p>
-        )}
+        {/* Nombre */}
+        <h3 className="text-lg font-semibold tracking-tight text-white">
+          {product.name}
+        </h3>
 
+        {/* Precio */}
+        <p className="text-yellow-400 font-bold text-lg">
+          €{product.price.toFixed(2)}
+        </p>
+
+        {/* Colores */}
+        <div className="flex items-center justify-between">
+          <ProductColors
+            product={product}
+            selectedColor={selectedColor}
+            selectedSize={selectedSize}
+            onSelect={setSelectedColor}
+          />
+        </div>
+
+        {/* Tallas */}
         <ProductSizes
           product={product}
           selectedSize={selectedSize}
@@ -65,28 +86,22 @@ export default function ProductCard({ product }: { product: Product }) {
           onSelect={setSelectedSize}
         />
 
-        <ProductColors
-          product={product}
-          selectedColor={selectedColor}
-          selectedSize={selectedSize}
-          onSelect={setSelectedColor}
-        />
-
+        {/* Stock */}
         <p className="text-xs text-neutral-500">
-          STOCK: <span className="text-green-400">{stock}</span>
+          DISP: <span className="text-green-400">{stock}</span>
         </p>
 
-        <p className="text-yellow-400 font-bold text-base">
-          €{product.price.toFixed(2)}
-        </p>
-
-        {/* Controles */}
-        <div className="mt-3 flex flex-col gap-2">
+        {/* Control + Añadir */}
+        <div className="flex flex-col gap-3 mt-1">
           <ProductQuantity
             quantity={quantity}
             onChange={handleQuantityChange}
           />
-          <ProductAddButton onAdd={handleAdd} qty={alreadyInCartQty} />
+
+          <ProductAddButton
+            onAdd={handleAdd}
+            qty={alreadyInCartQty}
+          />
         </div>
       </div>
     </article>

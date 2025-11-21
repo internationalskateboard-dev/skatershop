@@ -1,35 +1,75 @@
+// /components/product/ProductCard/ProductColors.tsx
+import type { Product } from "@/lib/types";
 import { cssColorFromName } from "@/lib/utils/product/colors";
-import type { Product, ProductColor } from "@/lib/types";
+import { soldMap } from "@/lib/utils/product/stock/soldMap";
+import { getRealStock } from "@/lib/utils/product/stock/getRealStock";
 
 type Props = {
   product: Product;
-  selectedColor: string | null;
   selectedSize: string | null;
+  selectedColor: string | null;
   onSelect: (color: string) => void;
 };
 
 export function ProductColors({ product, selectedColor, onSelect }: Props) {
   if (!product.colors) return null;
 
-  return (
-    <div className="mb-1 flex items-center gap-2">
-      <span className="text-xs text-neutral-300 uppercase tracking-wide">
-        Colores:
-      </span>
+  // ------------------------------------------------------------
+  // 1️⃣ Calcular stock real por color (sumando todas sus tallas)
+  // ------------------------------------------------------------
+  const stockByColor: Record<string, number> = {};
 
-      <div className="flex items-center gap-1.5">
-        {product.colors.map((c: ProductColor) => {
+  product.variantStock?.forEach((v) => {
+    const color = v.colorName ?? "UNKNOWN";
+
+    // clave única para ventas reales
+    const key = `${product.id}_${v.colorName}_${v.size}`;
+    const soldUnits = soldMap[key] ?? 0;
+
+    const realStock = getRealStock(v.stock ?? 0, soldUnits);
+
+    if (realStock <= 0) return;
+
+    stockByColor[color] = (stockByColor[color] ?? 0) + realStock;
+  });
+
+  // ------------------------------------------------------------
+  // 2️⃣ Lista de colores que tienen stock real
+  // ------------------------------------------------------------
+  const colorsEnable = Object.entries(stockByColor)
+    .filter(([_, stock]) => stock > 0)
+    .map(([color]) => color);
+
+  return (
+    <div className="mb-4">
+      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
+        Colores
+      </p>
+
+      <div className="flex items-center gap-2">
+        {product.colors.map((c) => {
+          const enabled = colorsEnable.includes(c.name);
           const active = selectedColor === c.name;
 
           return (
             <button
               key={c.name}
-              onClick={() => onSelect(c.name)}
-              className={`w-4 h-4 rounded-full border ring-1 transition ${
-                active
-                  ? "border-yellow-400 ring-yellow-400 scale-110"
-                  : "border-neutral-700 ring-black/40"
-              }`}
+              disabled={!enabled}
+              onClick={() => enabled && onSelect(c.name)}
+              title={enabled ? c.name : `${c.name} · sin stock`}
+              className={`
+                w-5 h-5 rounded-full border transition-transform
+                ${
+                  active
+                    ? "border-yellow-400 scale-110 shadow-[0_0_8px_rgba(250,204,21,0.5)]"
+                    : "border-neutral-600"
+                }
+                ${
+                  !enabled
+                    ? "opacity-30 cursor-not-allowed"
+                    : "hover:border-yellow-400"
+                }
+              `}
               style={{ backgroundColor: cssColorFromName(c.name) }}
             />
           );
