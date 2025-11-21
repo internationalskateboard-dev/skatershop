@@ -42,9 +42,11 @@ export function ProductColors({ product, selectedColor, onSelect }: Props) {
 
   return (
     <div className="mb-4">
-      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
-        Colores
-      </p>
+      {colorsEnable.length > 0 && (
+        <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
+          Colores
+        </p>
+      )}
 
       <div className="flex items-center gap-2">
         {product.colors.map((c) => {
