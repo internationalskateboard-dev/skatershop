@@ -19,7 +19,7 @@ import type { SaleRecord } from "./types";
 
 export const salesBase: SaleRecord[] = [
   {
-    id: "sale-seed-1",
+    id: "tee-skull",
     createdAt: "2024/11/23",
     items: [
       {
@@ -76,6 +76,85 @@ export const salesBase: SaleRecord[] = [
       email: "mix@example.com",
     },
   },
+
+{
+    id: "test-1",
+    createdAt: "2024/11/23",
+    items: [
+      {
+        // existe en lib/productsBase.ts
+        productId: "hoodie-black",
+        qty: 1,
+      },
+    ],
+    total: 39.9,
+    customer: {
+      fullName: "Cliente Demo Local",
+      email: "demo@example.com",
+      country: "ES",
+      city: "Madrid",
+      adresse: "Calle Falsa 123",
+      zip: "28001",
+      phone: "+34 600 000 000",
+    },
+  },
+
+{
+    id: "test-2",
+    createdAt: "2024/11/23",
+    items: [
+      {
+        // existe en lib/productsBase.ts
+        productId: "hoodie-black",
+        qty: 1,
+      },
+    ],
+    total: 39.9,
+    customer: {
+      fullName: "Cliente Demo Local",
+      email: "demo@example.com",
+      country: "ES",
+      city: "Madrid",
+      adresse: "Calle Falsa 123",
+      zip: "28001",
+      phone: "+34 600 000 000",
+    },
+  },
+
+{
+    id: "test-3",
+    createdAt: "2024/11/23",
+    items: [
+      {
+        // existe en lib/productsBase.ts
+        productId: "hoodie-black",
+        qty: 1,
+      },
+    ],
+    total: 39.9,
+    customer: {
+      fullName: "Cliente Demo Local",
+      email: "demo@example.com",
+      country: "ES",
+      city: "Madrid",
+      adresse: "Calle Falsa 123",
+      zip: "28001",
+      phone: "+34 600 000 000",
+    },
+  },
+
+
+
+
+
+
+
+
+
+
+
+
+
 ];
 
 /**

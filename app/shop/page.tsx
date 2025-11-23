@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ClientOnly from "@/components/layout/ClientOnly";
-import ProductCard from "@/components/ui/ProductCard";
+import ProductCard from "@/components/product/ProductCard/ProductCard";
 import useCartStore from "@/store/cartStore";
 import useMergedProducts from "@/lib/useMergedProducts";
 import {
@@ -43,13 +43,15 @@ function ShopPageWithContext() {
 
   useEffect(() => {
     // Pequeño delay para que se vea el estado de carga
-    const t = setTimeout(() => setLoading(false), 400);
+    const t = setTimeout(() => setLoading(false), 900);
     return () => clearTimeout(t);
   }, [products]);
 
   return (
     <ClientOnly>
-      <div className="text-white bg-neutral-950 min-h-screen">
+      {/* <div className="text-white bg-neutral-950 min-h-screen"> */}
+      <div className="text-white bg-neutral-900 min-h-screen">
+        
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-6">
           {/* Header de la tienda */}
           <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
@@ -66,15 +68,19 @@ function ShopPageWithContext() {
                 Fuente:{" "}
                 <span
                   className={
-                    source === "api"
+                    source === "db"
                       ? "text-green-400"
+                      : source === "api"
+                      ? "text-blue-400"
                       : source === "local"
                       ? "text-yellow-400"
                       : "text-neutral-300"
                   }
                 >
-                  {source === "api"
-                    ? "API"
+                  {source === "db"
+                    ? "BD (Prisma/Postgres)"
+                    : source === "api"
+                    ? "API externa"
                     : source === "local"
                     ? "Local (Zustand)"
                     : "Base"}
@@ -97,12 +103,12 @@ function ShopPageWithContext() {
             </div>
           </section>
 
-          {/* Estados de carga / vacío / lista */}
+          {/* Estados de carga / vacío / lista Falta corregir para cuando loading sea false! */}
           {loading ? (
             <p className="text-neutral-500 text-sm mt-6">
-              Cargando productos...
+              Cargando productos... 
             </p>
-          ) : products.length === 0 ? (
+          ) : loading! && products.length === 0 ? (
             <p className="text-neutral-500 text-sm mt-6">
               No hay productos disponibles todavía.
             </p>

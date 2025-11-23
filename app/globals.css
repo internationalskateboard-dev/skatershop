@@ -34,3 +34,55 @@ html {
   background-color: #0a0a0a;
   background-blend-mode: screen;
 }
+
+
+@layer utilities {
+  /* Ocultar scrollbars (Chrome, Safari, Edge) */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ocultar scrollbars (Firefox) */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none; /* IE y Edge antiguos */
+  }
+
+/* //////////////////////////////////////////////////////////// */
+/* /////////// Utilidades de animación 3D ///////////////////// */
+/* //////////////////////////////////////////////////////////// */
+
+.perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  @keyframes float-soft-3d {
+    0% {
+      transform: translateY(0px) rotateX(0deg) rotateY(-8deg);
+    }
+    50% {
+      transform: translateY(-10px) rotateX(4deg) rotateY(8deg);
+    }
+    100% {
+      transform: translateY(0px) rotateX(0deg) rotateY(-8deg);
+    }
+  }
+
+  .animate-float-3d {
+    animation: float-soft-3d 10s ease-in-out infinite;
+  }
+
+}
+
+
+
+/*
+@layer utilities {
+  
+}
+
+*/

@@ -33,8 +33,8 @@ Thumbs.db
 
 # Env
 .env
-#.env.local
-#.env.*.local
+.env.local
+.env.*.local
 
 # Coverage / pruebas
 coverage/
@@ -44,11 +44,14 @@ coverage/
 
 # Imágenes temporales o de admin en local
 public/uploads-temp/
-public/images/gorra_gris-x.png
-public/images/gorra_azul.jpg
-public/images/gorra_gris.jpg
-public/images/sueter_azul.png
-public/images/sueter_gris.png
+public/images/
 *.txt
 *.md
 *.zip
+
+/generated/prisma
+
+/generated/prisma
+
+/generated/prisma
+.env

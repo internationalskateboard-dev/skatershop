@@ -32,6 +32,10 @@ export default function CartPage() {
 
   // helper para actualizar cantidad sin dejarla en 0 o negativo
   const handleUpdateQty = (id: string, nextQty: number) => {
+    //const maxQty = cart.stock ?? 10;
+    // mínimo 1, máximo maxQty o 10 (se debe ajustar)
+    // return Math.min(maxQty, Math.max(1, next));
+
     const safeQty = Math.max(1, nextQty);
     updateQty(id, safeQty);
   };
@@ -79,20 +83,25 @@ export default function CartPage() {
 
             return (
               <li
-                key={it.id}
+                key={`${it.id}-${it.size ?? "nosize"}-${
+                  it.colorName ?? "nocolor"
+                }`}
                 className="flex items-start justify-between border-b border-neutral-800 pb-4"
               >
                 <div className="flex items-start gap-4">
-                  {/* Imagen del producto */}
-                  <div className="w-16 h-16 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
-                    <Image
-                      src={it.image || PRODUCT_PLACEHOLDER_IMAGE}
-                      alt={it.name ?? "producto"}
-                      width={64}
-                      height={64}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  {/* Ver Informacion del producto desde la imagen */}
+                  <Link href={`/products/${it.id}`}>
+                    {/* Imagen del producto */}
+                    <div className="w-16 h-16 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
+                      <Image
+                        src={it.image || PRODUCT_PLACEHOLDER_IMAGE}
+                        alt={it.name ?? "producto"}
+                        width={64}
+                        height={64}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </Link>
 
                   {/* Info del producto */}
                   <div>
@@ -104,6 +113,23 @@ export default function CartPage() {
                         Talla: {it.size}
                       </p>
                     )}
+
+                    {/* Color del producto (si existe) */}
+
+                    {it.colorName && (
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-300">
+                        <span
+                          className="inline-block w-3.5 h-3.5 rounded-full border border-neutral-700"
+                          style={{
+                            backgroundColor: it.colorName
+                              ? it.colorName.toLowerCase().replace(/\s+/g, "")
+                              : "#333",
+                          }}
+                        />
+                        <span className="text-neutral-400">{it.colorName}</span>
+                      </div>
+                    )}
+
                     <p className="text-neutral-400 text-sm leading-snug">
                       €{unitPrice.toFixed(2)} c/u
                     </p>

@@ -8,6 +8,13 @@
  * Ahora tipado con Product (lib/types.ts)
  */
 
+/** */
+export type VariantStockItem = {
+  size?: string | null;        // puede haber solo color
+  colorName?: string | null;   // puede haber solo talla
+  stock: number;               // stock de esa combinación
+};
+
 /**
  * ColorVariant
  * ------------------------------------------------------------
@@ -20,19 +27,38 @@ export type ProductColor = {
   image?: string; // puede venir vacío si no subieron imagen para ese color
 };
 
+// Objeto fundamental del proyecto - El Producto
+/* export type Product = {
+  id: string;
+  name: string; // Nombre del producto.
+  price: number; // Precio del producto.
+  desc?: string; // Pequeña descrip del producto
+  details?: string; // Descripcion detallada del producto.
+  image?: string; // Puede ser URL o base64.
+  sizes?: string[]; // Tallas disponibles, ej:["S","M","L"] o ["ONE SIZE"]
+  stock?: number; // Indica la cantidad del producto en existencia Debera ser (La cantidad Registrada - Las Ventas)
+  colors?: ProductColor[]; // Indica los colores disponibles para el producto.
+  sizeGuide?: string; // texto multilinea con medidas de las tallas disponibles del producto.
+  isClothing: boolean // Indica si el producto es ropa o no.
+  variantStock?: VariantStockItem[]; // 👈 NUEVO: stock por talla+color
+};*/
+
 export type Product = {
   id: string;
-  name: string;
-  price: number;
-  desc?: string;
-  details?: string;
-  image?: string; // puede ser URL o base64
-  sizes?: string[]; // ej: ["S","M","L"] o ["ONE SIZE"]
-  stock?: number; // opcional porque los productos base pueden no traerlo
-  colors?: ProductColor[];
-  sizeGuide?: string; // texto multilinea con medidas
-  isClothing: boolean // Indica si el producto es ropa o no
+  name: string; // Nombre del producto.
+  price: number; // Precio del producto.
+  desc?: string; // Pequeña descrip del producto
+  details?: string; // Descripcion detallada del producto.
+  image?: string; // Puede ser URL o base64.
+  sizes?: string[]; // Tallas disponibles, ej:["S","M","L"] o ["ONE SIZE"]
+  stock?: number | null; // Indica la cantidad del producto en existencia Debera ser (La cantidad Registrada - Las Ventas)
+  colors?: { name: string; image?: string }[]; // Indica los colores disponibles para el producto y su imagen.
+  sizeGuide?: string; // texto multilinea con medidas de las tallas disponibles del producto.
+  isClothing: boolean // Indica si el producto es ropa o no.
+  variantStock?: VariantStockItem[] | null; // 👈 NUEVO: stock por talla+color
 };
+
+
 
 /**
  * Lo que guardamos en el carrito.
@@ -46,6 +72,8 @@ export type CartItem = {
   qty: number;
   image?: string;
   size?: string;
+  colorName?: string;
+  stock?: number; // Indica la cantidad del producto en existencia
 };
 
 /**

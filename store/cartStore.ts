@@ -27,21 +27,30 @@ const useCartStore = create<CartState>()(
 
       addToCart: (item) =>
         set((state) => {
-          const existing = state.cart.find((i) => i.id === item.id);
-          if (existing) {
+          // Buscar si ya existe MISMO producto + MISMA talla + MISMO color
+          const existingIndex = state.cart.findIndex(
+            (i) =>
+              i.id === item.id &&
+              i.size === item.size &&
+              i.colorName === item.colorName
+          );
+
+          // ✅ Si existe esa combinación → solo actualizamos cantidad
+          if (existingIndex !== -1) {
             return {
-              cart: state.cart.map((i) =>
-                i.id === item.id
+              cart: state.cart.map((i, idx) =>
+                idx === existingIndex
                   ? {
                       ...i,
                       qty: i.qty + (item.qty || 1),
-                      image: item.image ?? i.image,
-                      size: item.size ?? i.size,
+                      image: item.image ?? i.image, // opcional
                     }
                   : i
               ),
             };
           }
+
+          // 🆕 Si NO existe esa combinación (cambia talla o color) → nueva línea
           return {
             cart: [
               ...state.cart,
@@ -52,6 +61,7 @@ const useCartStore = create<CartState>()(
                 qty: item.qty || 1,
                 image: item.image || "",
                 size: item.size,
+                colorName: item.colorName,
               },
             ],
           };
@@ -77,13 +87,24 @@ const useCartStore = create<CartState>()(
 
       clearCart: () => set({ cart: [] }),
 
-      total: () =>
-        get().cart.reduce((acc, i) => acc + i.price * i.qty, 0),
+      total: () => get().cart.reduce((acc, i) => acc + i.price * i.qty, 0),
 
-      countItems: () =>
-        get().cart.reduce((acc, i) => acc + i.qty, 0),
+      countItems: () => get().cart.reduce((acc, i) => acc + i.qty, 0),
     }),
-    { name: "skater-cart" }
+    {
+      name: "skater-cart",
+      // 🔑 solo persistimos campos pequeños (sin image)
+      partialize: (state) => ({
+        cart: state.cart.map(({ id, name, price, qty, size, colorName }) => ({
+          id,
+          name,
+          price,
+          qty,
+          size,
+          colorName,
+        })),
+      }),
+    }
   )
 );
 
