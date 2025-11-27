@@ -54,4 +54,6 @@ public/images/
 /generated/prisma
 
 /generated/prisma
-.env
+# Documentos Informacion System
+docs/*
+readme.md
