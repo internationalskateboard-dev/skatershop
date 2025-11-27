@@ -1,75 +1,104 @@
+// hooks/product/useProductVariants.ts
 import { useEffect, useMemo, useState } from "react";
 import type { Product } from "@/lib/types";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
-import { getVariantStock } from "@/lib/utils/product/stock";
-import { soldMap } from "@/lib/utils/product/stock/soldMap";
+import {
+  getVariantStock,
+  getColorStock,
+  getSizeStock,
+  getRealStock,
+} from "@/lib/stock";
+import { soldMap } from "@/lib/stock/soldMap";
 
 export function useProductVariants(product?: Product) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   // ------------------------------------------------------------
-  // 1) Seleccionar PRIMER color disponible al cargar el producto
+  // Colores habilitados (normalizados)
+  // ------------------------------------------------------------
+  const enabledColors = useMemo<string[]>(() => {
+    if (!product || !Array.isArray(product.colors)) return [];
+
+    return product.colors
+      .filter((c) => getColorStock(product, c.name, soldMap) > 0)
+      .map((c) => c.name.toUpperCase()); // 👈 normalizamos
+  }, [product]);
+
+  // ------------------------------------------------------------
+  // Tallas habilitadas (normalizadas)
+  // ------------------------------------------------------------
+  const enabledSizes = useMemo<string[]>(() => {
+    if (!product || !Array.isArray(product.sizes)) return [];
+
+    // Sin variantStock → todas habilitadas
+    if (!product.variantStock?.length) {
+      return product.sizes;
+    }
+
+    // Color seleccionado
+    if (selectedColor) {
+      const sizesSet = new Set<string>();
+      const normalizedColor = selectedColor.toUpperCase();
+
+      product.variantStock.forEach((v) => {
+        const vColor = (v.colorName ?? "").toUpperCase();
+        const vSize = v.size ?? "";
+
+        if (vColor === normalizedColor && vSize) {
+          const key = `${vColor}_${vSize}`;
+          const sold = soldMap[key] ?? 0;
+          const real = getRealStock(v.stock ?? 0, sold);
+          if (real > 0) sizesSet.add(vSize);
+        }
+      });
+
+      return product.sizes.filter((s) => sizesSet.has(s));
+    }
+
+    // Sin color: tallas con stock global
+    return product.sizes.filter(
+      (s) => getSizeStock(product, s, soldMap) > 0
+    );
+  }, [product, selectedColor]);
+
+  // ------------------------------------------------------------
+  // Color inicial
   // ------------------------------------------------------------
   useEffect(() => {
     if (!product) return;
 
-    const firstColor = product.colors?.[0]?.name ?? null;
-    setSelectedColor(firstColor);
-  }, [product]);
-
-  // ------------------------------------------------------------
-  // 2) Si el color NO tiene tallas → elegir otro color válido
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (!product || !selectedColor) return;
-
-    // Tallas con stock para este color
-    const sizesForColor =
-      product.variantStock
-        ?.filter((v) => v.colorName === selectedColor && v.stock > 0)
-        .map((v) => v.size) ?? [];
-
-    // Este color SI tiene tallas → no tocar
-    if (sizesForColor.length > 0) return;
-
-    // Buscar PRIMER color con tallas disponibles
-    const availableColor = product.colors?.find((c) =>
-      product.variantStock?.some((v) => v.colorName === c.name && v.stock > 0)
-    );
-
-    if (availableColor) {
-      setSelectedColor(availableColor.name);
-    }
-  }, [selectedColor, product]);
-
-  // ------------------------------------------------------------
-  // 3) Seleccionar la PRIMERA talla disponible para el color actual
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (!product || !selectedColor) return;
-
-    const sizesForColor: string[] =
-      product.variantStock
-        ?.filter((v) => v.colorName === selectedColor && v.stock > 0)
-        .map((v) => v.size)
-        .filter((s): s is string => typeof s === "string") ?? [];
-
-    if (sizesForColor.length > 0) {
-      if (!selectedSize || !sizesForColor.includes(selectedSize)) {
-        setSelectedSize(sizesForColor[0]);
-      }
+    if (enabledColors.length === 0) {
+      setSelectedColor(null);
       return;
     }
 
-    // fallback si no existen variantStock
-    if (product.sizes?.length) {
-      setSelectedSize(product.sizes[0]);
-    }
-  }, [selectedColor, product]);
+    setSelectedColor((prev) => {
+      const prevNorm = prev?.toUpperCase();
+      if (prevNorm && enabledColors.includes(prevNorm)) return prev;
+      return enabledColors[0];
+    });
+  }, [product, enabledColors]);
 
   // ------------------------------------------------------------
-  // STOCK
+  // Talla inicial
+  // ------------------------------------------------------------
+  useEffect(() => {
+    if (!product) return;
+
+    if (enabledSizes.length === 0) {
+      setSelectedSize(null);
+      return;
+    }
+
+    setSelectedSize((prev) => {
+      if (prev && enabledSizes.includes(prev)) return prev;
+      return enabledSizes[0];
+    });
+  }, [product, enabledSizes]);
+
+  // ------------------------------------------------------------
+  // Stock
   // ------------------------------------------------------------
   const stock = useMemo(() => {
     if (!product) return 0;
@@ -77,17 +106,23 @@ export function useProductVariants(product?: Product) {
   }, [product, selectedSize, selectedColor]);
 
   // ------------------------------------------------------------
-  // IMAGEN
+  // Imagen actual
   // ------------------------------------------------------------
   const currentImage = useMemo(() => {
     if (!product) return PRODUCT_PLACEHOLDER_IMAGE;
 
+    // Imagen base cuando no hay colores
     const base = product.image ?? PRODUCT_PLACEHOLDER_IMAGE;
-    const active =
-      product.colors?.find((c) => c.name === selectedColor) ??
-      product.colors?.[0];
 
-    return active?.image ?? base;
+    if (selectedColor && Array.isArray(product.colors)) {
+      const normalized = selectedColor.toUpperCase();
+      const found = product.colors.find(
+        (c) => c.name.toUpperCase() === normalized
+      );
+      return found?.image ?? base;
+    }
+
+    return base;
   }, [product, selectedColor]);
 
   return {
@@ -97,5 +132,7 @@ export function useProductVariants(product?: Product) {
     setSelectedColor,
     stock,
     currentImage,
+    enabledColors,
+    enabledSizes,
   };
 }

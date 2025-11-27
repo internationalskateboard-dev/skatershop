@@ -11,7 +11,7 @@ import Link from "next/link";
 import ClientOnly from "@/components/layout/ClientOnly";
 import ProductCard from "@/components/product/ProductCard/ProductCard";
 import useCartStore from "@/store/cartStore";
-import useMergedProducts from "@/lib/useMergedProducts";
+import useMergedProducts from "@/lib/products/useMergedProducts";
 import {
   AdminDataSourceProvider,
   useAdminDataSource,
@@ -51,7 +51,6 @@ function ShopPageWithContext() {
     <ClientOnly>
       {/* <div className="text-white bg-neutral-950 min-h-screen"> */}
       <div className="text-white bg-neutral-900 min-h-screen">
-        
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-6">
           {/* Header de la tienda */}
           <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
@@ -60,10 +59,10 @@ function ShopPageWithContext() {
                 Skater Shop
               </h1>
               <p className="text-neutral-300 max-w-md text-xs sm:text-sm leading-relaxed mt-1">
-                Ropa inspirada en la calle, hecha para patinar. Drop limitado.
+                Ropa inspirada en la calle, hecha para patinar. Stock limitado.
               </p>
 
-              {/* Fuente de productos */}
+              {/* Fuente de productos 
               <p className="mt-1 text-[11px] sm:text-xs text-neutral-500">
                 Fuente:{" "}
                 <span
@@ -89,6 +88,7 @@ function ShopPageWithContext() {
                   <span className="ml-2 text-red-400">{lastError}</span>
                 ) : null}
               </p>
+              */}
             </div>
 
             {/* Acceso rápido al carrito */}
@@ -97,8 +97,23 @@ function ShopPageWithContext() {
                 href="/cart"
                 className="inline-flex items-center justify-center w-full sm:w-auto rounded-full bg-yellow-400/90 text-black font-semibold text-xs sm:text-sm px-4 py-2 shadow-lg shadow-yellow-400/30 hover:bg-yellow-300 transition"
               >
-                <span className="mr-2 text-sm">🛒</span>
-                <span>Carrito ({cartCount})</span>
+                <span className="mr-2 text-sm">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="black"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-6 h-6"
+                  >
+                    <circle cx="9" cy="20" r="1.6" />
+                    <circle cx="17" cy="20" r="1.6" />
+                    <path d="M3 3h2l3.6 12.3a1.8 1.8 0 001.7 1.3h7.2a1.8 1.8 0 001.7-1.3L22 7H6" />
+                  </svg>
+                </span>
+                <span>Cart ({cartCount})</span>
               </Link>
             </div>
           </section>
@@ -106,14 +121,14 @@ function ShopPageWithContext() {
           {/* Estados de carga / vacío / lista Falta corregir para cuando loading sea false! */}
           {loading ? (
             <p className="text-neutral-500 text-sm mt-6">
-              Cargando productos... 
+              Cargando productos...
             </p>
           ) : loading! && products.length === 0 ? (
             <p className="text-neutral-500 text-sm mt-6">
               No hay productos disponibles todavía.
             </p>
           ) : (
-            <section className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+            <section className="mt-3 sm:mt-4 grid grid-cols-1 h-1/5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

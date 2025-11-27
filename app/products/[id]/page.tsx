@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 
-import useMergedProducts from "@/lib/useMergedProducts";
+import useMergedProducts from "@/lib/products/useMergedProducts";
 
 import { useProductVariants } from "@/hooks/product/useProductVariants";
 import { useProductCard } from "@/hooks/product/useProductCard";
@@ -15,6 +15,7 @@ import { ProductColors } from "@/components/product/ProductCard/ProductColors";
 import { ProductQuantity } from "@/components/product/ProductCard/ProductQuantity";
 import { ProductAddButton } from "@/components/product/ProductCard/ProductAddButton";
 
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 
 export default function ProductDetailPage() {
@@ -30,27 +31,23 @@ export default function ProductDetailPage() {
     [products, id]
   );
 
-  // ------------------------------------------------------------
-  // ✔ Hooks SIEMPRE se ejecutan, aunque product sea undefined
-  // ------------------------------------------------------------
-
+  // 🔥 Hooks siempre antes del render condicional
   const variants = useProductVariants(product);
-  const cart = useProductCard(
-    product,
-    variants.stock,
-    variants.selectedSize,
-    variants.selectedColor,
-    variants.currentImage
-  );
+
+  const cart = useProductCard(product, {
+    stock: variants.stock,
+    selectedSize: variants.selectedSize,
+    selectedColor: variants.selectedColor,
+    currentImage: variants.currentImage,
+  });
 
   // ------------------------------------------------------------
-  // ❗ UI condicional solo DESPUÉS de ejecutar hooks
+  // UI condicional después de hooks
   // ------------------------------------------------------------
-
   if (!product) {
     return (
       <div className="text-white text-center py-20">
-        <p className="text-neutral-400 mb-6">Producto no encontrado.</p>
+        <p className="text-neutral-400 mb-6">Cargando...</p>
 
         <Link
           href="/shop"
@@ -62,15 +59,14 @@ export default function ProductDetailPage() {
     );
   }
 
-  // ------------------------------------------------------------
-  // UI
-  // ------------------------------------------------------------
-  
-  return (
-    <div className="relative max-w-5xl mx-auto px-6 text-white grid md:grid-cols-2 gap-14 mt-12 pb-24">
+  // Imagen segura
+  const safeImage =
+    variants.currentImage || product.image || PRODUCT_PLACEHOLDER_IMAGE;
 
+  return (
+    <div className="relative max-w-5xl mx-auto px-6 text-white grid md:grid-cols-2 gap-8 mt-1 pb-24">
       {/* Volver */}
-      <div className="md:col-span-2 mb-2">
+      <div className="md:col-span-2">
         <button
           onClick={() => router.back()}
           className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-semibold text-neutral-100 hover:border-yellow-400 hover:text-yellow-300 active:scale-95 transition"
@@ -82,7 +78,7 @@ export default function ProductDetailPage() {
       {/* Imagen */}
       <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 shadow-xl">
         <Image
-          src={variants.currentImage}
+          src={safeImage}
           alt={product.name}
           fill
           className="object-cover"
@@ -91,14 +87,8 @@ export default function ProductDetailPage() {
 
       {/* Información del producto */}
       <div className="flex flex-col justify-between">
-
         <div className="space-y-4">
-
-          <h1 className="text-4xl font-bold">{product.name}</h1>
-
-          <p className="text-neutral-400 text-sm leading-relaxed">
-            {product.details || product.desc || "Producto SkaterShop."}
-          </p>
+          <h1 className="text-2xl font-bold md:text-3xl">{product.name}</h1>
 
           <p className="text-yellow-400 font-bold text-2xl">
             €{product.price.toFixed(2)}
@@ -108,35 +98,43 @@ export default function ProductDetailPage() {
           <ProductColors
             product={product}
             selectedColor={variants.selectedColor}
-            selectedSize={variants.selectedSize}
             onSelect={variants.setSelectedColor}
+            enabledColors={variants.enabledColors || []}
           />
 
           {/* Tallas */}
           <ProductSizes
             product={product}
             selectedSize={variants.selectedSize}
-            selectedColor={variants.selectedColor}
             onSelect={variants.setSelectedSize}
+            enabledSizes={variants.enabledSizes || []}
           />
 
           {/* Stock */}
           <p className="text-sm text-neutral-400">
-            Stock disponible:{" "}
-            <span className="text-green-400 font-semibold">{variants.stock}</span>
+            Stock para esta combinación:{" "}
+            <span className="text-green-400 font-semibold">
+              {variants.stock}
+            </span>
+          </p>
+
+          <p className="text-neutral-400 text-sm leading-relaxed">
+            {product.details || product.desc || "Producto SkaterShop."}
           </p>
         </div>
 
         {/* Acciones */}
-        <div className="mt-10 flex flex-col gap-3">
+        <div className="mt-7 flex flex-col gap-3">
           <ProductQuantity
             quantity={cart.quantity}
             onChange={cart.handleQuantityChange}
+            max={variants.stock}
           />
 
           <ProductAddButton
             onAdd={cart.handleAdd}
-            qty={cart.alreadyInCartQty}
+            qtyInCart={cart.alreadyInCartQty}
+            stock={variants.stock}
           />
         </div>
       </div>

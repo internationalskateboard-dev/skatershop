@@ -1,23 +1,18 @@
-/**
- * useProductStore
- * ------------------------------------------------------------
- * - Guarda productos creados desde el admin (en memoria)
- * - Permite agregarlos, actualizarlos y borrarlos
- * - Permite reducir stock por lote (checkout)
- *
- * La persistencia real de productos debe estar en la BD,
- * este store es solo estado de UI.
- */
+// store/productStore.ts
 
 import { create } from "zustand";
 import type { Product } from "@/lib/types";
+import { sanitizeProductImages } from "@/lib/utils/product/sanitizeProduct";
 
 export type ProductState = {
   products: Product[];
   addProduct: (p: Product) => void;
   updateProduct: (id: string, data: Partial<Product>) => void;
   removeProduct: (id: string) => void;
+
+  /** ⚠ Debería actualizar variantStock, no stock global */
   reduceStockBatch: (batch: { productId: string; qty: number }[]) => void;
+
   findById: (id: string) => Product | undefined;
 };
 
@@ -26,22 +21,25 @@ const useProductStore = create<ProductState>((set, get) => ({
 
   addProduct: (p) =>
     set((state) => {
+      const product = sanitizeProductImages(p);
+
       const exists = state.products.find((x) => x.id === p.id);
       if (exists) {
-        // si ya existe, lo sobreescribimos
         return {
           products: state.products.map((x) =>
-            x.id === p.id ? { ...x, ...p } : x
+            x.id === p.id ? sanitizeProductImages({ ...x, ...p }) : x
           ),
         };
       }
-      return { products: [...state.products, p] };
+      return { products: [...state.products, product] };
     }),
 
   updateProduct: (id, data) =>
     set((state) => ({
       products: state.products.map((p) =>
-        p.id === id ? { ...p, ...data } : p
+        p.id === id
+          ? sanitizeProductImages({ ...p, ...data })
+          : p
       ),
     })),
 
@@ -50,23 +48,20 @@ const useProductStore = create<ProductState>((set, get) => ({
       products: state.products.filter((p) => p.id !== id),
     })),
 
-  // usado en checkout
+  // ⚠ Actualmente obsoleto en tu sistema (stock global no existe)
   reduceStockBatch: (batch) =>
     set((state) => {
-      if (!batch || batch.length === 0) return state;
-      const updated = state.products.map((p) => {
-        const found = batch.find((b) => b.productId === p.id);
-        if (!found) return p;
-        const currentStock = typeof p.stock === "number" ? p.stock : 0;
-        const newStock = Math.max(0, currentStock - found.qty);
-        return { ...p, stock: newStock };
-      });
-      return { products: updated };
+      console.warn(
+        "[reduceStockBatch] ADVERTENCIA: debería modificarse para variantStock"
+      );
+
+      return state; // por ahora no modificamos nada
     }),
 
-  findById: (id) => {
-    return get().products.find((p) => p.id === id);
-  },
+  findById: (id) =>
+    sanitizeProductImages(
+      get().products.find((p) => p.id === id) ?? (undefined as any)
+    ),
 }));
 
 export default useProductStore;

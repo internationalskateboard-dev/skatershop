@@ -1,25 +1,36 @@
 // lib/server/productsMemory.ts
 import type { Product } from "@/lib/types";
+import { sanitizeProductImages } from "@/lib/utils/product/sanitizeProduct";
 
 export const productsMemory: Product[] = [];
 
-// crea o actualiza
+// create or update
 export function upsertProductInMemory(p: Product): Product {
-  const idx = productsMemory.findIndex((x) => x.id === p.id);
+  const clean = sanitizeProductImages({
+    ...p,
+    variantStock: p.variantStock?.map((v) => ({
+      size: v.size?.trim() ?? null,
+      colorName: v.colorName?.trim() ?? null,
+      stock: v.stock ?? 0,
+    })),
+  });
+
+  const idx = productsMemory.findIndex((x) => x.id === clean.id);
+
   if (idx >= 0) {
-    productsMemory[idx] = { ...productsMemory[idx], ...p };
+    productsMemory[idx] = { ...productsMemory[idx], ...clean };
     return productsMemory[idx];
   }
-  productsMemory.push(p);
-  return p;
+
+  productsMemory.push(clean);
+  return clean;
 }
 
-// obtener por id (👉 este era el que faltaba)
 export function getProductFromMemory(id: string): Product | null {
-  return productsMemory.find((x) => x.id === id) ?? null;
+  const found = productsMemory.find((x) => x.id === id);
+  return found ? sanitizeProductImages(found) : null;
 }
 
-// borrar
 export function removeProductFromMemory(id: string): boolean {
   const idx = productsMemory.findIndex((x) => x.id === id);
   if (idx === -1) return false;

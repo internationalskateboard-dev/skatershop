@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 
 const links = [
   { href: "/admin/products", label: "Productos", icon: "🛍️" },

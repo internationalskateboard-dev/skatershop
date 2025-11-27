@@ -1,4 +1,4 @@
-// product-utils.tsx
+// components/ui/product-utils.tsx
 import type { Product, VariantStockItem, CartItem } from "@/lib/types";
 
 /*

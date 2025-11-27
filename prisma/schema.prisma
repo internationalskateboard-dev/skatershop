@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,43 +9,191 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Product {
-  id           String           @id
-  name         String
-  price        Float
-  desc         String?
-  details      String?
-  image        String?
-  sizesJson    Json?
-  stock        Int?
-  colorsJson   Json?
-  sizeGuide    String?
-  isClothing   Boolean
-  variantStock Json? // JSON con las variantes (si lo usas)
-  variants     ProductVariant[] // 👈 RELACIÓN inversa (lista)
+model Category {
+  id        BigInt   @id @default(autoincrement()) @map("idcategory")
+  name      String   @unique
+  products  Product[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@map("category")
+}
+
+model ProductType {
+  id     BigInt  @id @default(autoincrement()) @map("idtype")
+  name   String  @unique @map("typename")
+  // relaciones
+  products Product[]
+  sizes    Size[]
+
+  @@map("product_type")
+}
+
+model Color {
+  id    BigInt @id @default(autoincrement()) @map("idcolorsprod")
+  name  String @unique @map("namecolorsprod")
+
+  images      ProductColorImage[]
+  stockItems  StockColorSize[]
+  variants    ProductVariant[]
+  orderItems  OrderItem[]
+
+  @@map("colorsprod")
+}
+
+model Size {
+  id      BigInt @id @default(autoincrement()) @map("idsizesprod")
+  label   String @map("sizesprod")
+  typeId  BigInt @map("idtype_fk")
+
+  type        ProductType     @relation(fields: [typeId], references: [id])
+  stockItems  StockColorSize[]
+  variants    ProductVariant[]
+  orderItems  OrderItem[]
+
+  @@map("sizesprod")
+}
+
+model Product {
+  id          BigInt   @id @default(autoincrement()) @map("idprod")
+  name        String   @map("name")
+  slug        String   @unique
+  price       Decimal  @db.Decimal(10, 2)
+  desc        String?  @map("desc")
+  details     String?
+  typeId      BigInt   @map("idtype_fk")
+  categoryId  BigInt?  @map("idcategory_fk")
+  createdAt   DateTime @default(now()) @map("createdat")
+  updatedAt   DateTime @default(now()) @map("updatedat")
+  published   Boolean  @default(false)
+
+  type      ProductType @relation(fields: [typeId], references: [id])
+  category  Category?   @relation(fields: [categoryId], references: [id])
+
+  images      ProductColorImage[]
+  stockItems  StockColorSize[] @relation("ProductStock")
+  variants    ProductVariant[]
+  orderItems  OrderItem[]
+
+  @@map("product")
+}
+
+model ProductColorImage {
+  id        BigInt @id @default(autoincrement())
+  productId BigInt @map("idprod_fk")
+  colorId   BigInt @map("idcolor_fk")
+  imageUrl  String @map("image_url")
+
+  product Product @relation(fields: [productId], references: [id])
+  color   Color   @relation(fields: [colorId], references: [id])
+
+  @@map("product_color_image")
+}
+
+model StockColorSize {
+  id        BigInt @id @default(autoincrement()) @map("id_stock_color_size")
+  productId BigInt @map("id_prod_fk")
+  colorId   BigInt @map("id_color_fk")
+  sizeId    BigInt @map("id_size_fk")
+  stock     Int
+
+  product Product @relation("ProductStock", fields: [productId], references: [id])
+  color   Color   @relation(fields: [colorId], references: [id])
+  size    Size    @relation(fields: [sizeId], references: [id])
+
+  variants   ProductVariant[]
+  orderItems OrderItem[]
+  soldLogs   SoldStockLog[]
+
+  @@map("stock_color_size")
 }
 
 model ProductVariant {
-  id        String  @id @default(cuid())
-  product   Product @relation(fields: [productId], references: [id])
-  productId String
+  id               BigInt @id @default(autoincrement()) @map("idvariant")
+  productId        BigInt @map("idprod_fk")
+  colorId          BigInt @map("idcolor_fk")
+  sizeId           BigInt @map("idsize_fk")
+  stockColorSizeId BigInt @map("id_stock_color_size")
 
-  size      String?
-  colorName String?
-  stock     Int
-  sku       String?
+  product        Product        @relation(fields: [productId],        references: [id])
+  color          Color          @relation(fields: [colorId],          references: [id])
+  size           Size           @relation(fields: [sizeId],           references: [id])
+  stockColorSize StockColorSize @relation(fields: [stockColorSizeId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@map("productvariant")
 }
 
-model Sale {
-  id           String   @id @default(cuid())
-  createdAt    DateTime @default(now())
-  itemsJson    Json
-  total        Float
-  customerJson Json?
+model User {
+  id           BigInt   @id @default(autoincrement()) @map("iduser")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String?  @map("fullname")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  orders Order[]
+  roles  UserRole[]
+
+  @@map("users")
+}
+
+model Role {
+  id    BigInt @id @default(autoincrement()) @map("idrole")
+  name  String @unique
+
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId BigInt @map("iduser_fk")
+  roleId BigInt @map("idrole_fk")
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_role")
+}
+
+model Order {
+  id        BigInt   @id @default(autoincrement()) @map("idorder")
+  userId    BigInt?  @map("iduser_fk")
+  total     Decimal  @db.Decimal(10, 2)
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User?       @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id               BigInt  @id @default(autoincrement()) @map("idorder_item")
+  orderId          BigInt  @map("idorder_fk")
+  productId        BigInt  @map("id_prod_fk")
+  colorId          BigInt  @map("id_color_fk")
+  sizeId           BigInt  @map("id_size_fk")
+  stockColorSizeId BigInt  @map("id_stock_color_size")
+  qty              Int
+  price            Decimal @db.Decimal(10, 2)
+
+  order          Order          @relation(fields: [orderId],          references: [id])
+  product        Product        @relation(fields: [productId],        references: [id])
+  color          Color          @relation(fields: [colorId],          references: [id])
+  size           Size           @relation(fields: [sizeId],           references: [id])
+  stockColorSize StockColorSize @relation(fields: [stockColorSizeId], references: [id])
+
+  @@map("order_items")
+}
+
+model SoldStockLog {
+  id               BigInt   @id @default(autoincrement()) @map("idsold")
+  stockColorSizeId BigInt   @map("id_stock_color_size")
+  qty              Int
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  stockColorSize StockColorSize @relation(fields: [stockColorSizeId], references: [id])
+
+  @@map("sold_stock_log")
 }

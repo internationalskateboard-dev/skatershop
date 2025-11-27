@@ -1,14 +1,4 @@
-/**
- * useSalesStore
- * ------------------------------------------------------------
- * - Guarda las ventas confirmadas (checkout / PayPal)
- * - Nos permite saber si un producto tiene ventas → LOCKED en admin
- * - Ahora:
- *    ✅ addSale(sale: SaleRecord) → guardas una venta completa
- *    ✅ addSaleBatch(items, opts) → atajo cuando solo tienes items
- *    ✅ getSoldQty(productId) → suma de cantidades vendidas de ese producto
- */
-
+// store/salesStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {

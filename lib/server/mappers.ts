@@ -9,6 +9,23 @@
  */
 
 import type { Product, SaleRecord } from "@/lib/types";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
+
+function safeImage(src: any): string {
+  if (typeof src !== "string") return PRODUCT_PLACEHOLDER_IMAGE;
+
+  // base64
+  if (src.startsWith("data:image")) return src;
+
+  // rutas locales
+  if (src.startsWith("/")) return src;
+
+  // http / https
+  if (src.startsWith("http")) return src;
+
+  return PRODUCT_PLACEHOLDER_IMAGE;
+}
+
 
 // ----------------------
 // PRODUCTO
@@ -21,28 +38,36 @@ export function mapDbProductToProduct(db: any): Product {
     price: db.price,
     desc: db.desc ?? undefined,
     details: db.details ?? undefined,
-    image: db.image ?? undefined,
 
-    // En schema.prisma: sizesJson Json?
-    // Guardamos arrays directamente como JSON
-    sizes: (db.sizesJson as string[] | null) ?? undefined,
+    image: safeImage(db.image),
 
-    // En schema: stock Int?
-    stock:
-      typeof db.stock === "number"
-        ? db.stock
-        : db.stock != null
-        ? Number(db.stock)
-        : undefined,
+    sizes: Array.isArray(db.sizesJson)
+      ? db.sizesJson.map((s: any) => String(s).trim())
+      : [],
 
-    // En schema: colorsJson Json?
-    colors: (db.colorsJson as any[] | null) ?? undefined,
+    stock: typeof db.stock === "number" ? db.stock : Number(db.stock ?? 0),
+
+    colors: Array.isArray(db.colorsJson)
+      ? db.colorsJson.map((c: any) => ({
+          name: String(c?.name ?? "").trim(),
+          image: safeImage(c?.image),
+        }))
+      : [],
 
     sizeGuide: db.sizeGuide ?? undefined,
     isClothing: Boolean(db.isClothing),
-    variantStock: (db.variantStock as any) ?? [], // 👈 importante
+
+    variantStock: Array.isArray(db.variantStock)
+      ? db.variantStock.map((v: any) => ({
+          size: v.size ? String(v.size).trim() : null,
+          colorName: v.colorName ? String(v.colorName).trim() : null,
+          stock: Number(v.stock ?? 0),
+          image: safeImage(v.image),
+        }))
+      : [],
   };
 }
+
 
 export function mapProductToDbData(p: Product) {
   return {

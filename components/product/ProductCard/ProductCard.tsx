@@ -1,3 +1,4 @@
+// components/product/ProductCard/ProductCard.tsx
 "use client";
 
 import Link from "next/link";
@@ -13,7 +14,6 @@ import { ProductQuantity } from "./ProductQuantity";
 import { ProductAddButton } from "./ProductAddButton";
 
 export default function ProductCard({ product }: { product: Product }) {
-  
   const {
     selectedSize,
     selectedColor,
@@ -21,6 +21,8 @@ export default function ProductCard({ product }: { product: Product }) {
     setSelectedColor,
     stock,
     currentImage,
+    enabledColors,
+    enabledSizes,
   } = useProductVariants(product);
 
   const {
@@ -29,7 +31,12 @@ export default function ProductCard({ product }: { product: Product }) {
     handleAdd,
     alreadyInCartQty,
     toast,
-  } = useProductCard(product, stock, selectedSize, selectedColor, currentImage);
+  } = useProductCard(product, {
+    stock,
+    selectedSize,
+    selectedColor,
+    currentImage,
+  });
 
   return (
     <article className="h-auto group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 p-4 shadow-md hover:shadow-xl transition-all">
@@ -57,32 +64,27 @@ export default function ProductCard({ product }: { product: Product }) {
 
       {/* Contenido */}
       <div className="flex flex-col gap-3 mt-4">
-
-        {/* Nombre */}
         <h3 className="text-lg font-semibold tracking-tight text-white">
           {product.name}
         </h3>
 
-        {/* Precio */}
         <p className="text-yellow-400 font-bold text-lg">
           €{product.price.toFixed(2)}
         </p>
 
         {/* Colores */}
-        <div className="flex items-center justify-between">
-          <ProductColors
-            product={product}
-            selectedColor={selectedColor}
-            selectedSize={selectedSize}
-            onSelect={setSelectedColor}
-          />
-        </div>
+        <ProductColors
+          product={product}
+          selectedColor={selectedColor}
+          enabledColors={enabledColors}
+          onSelect={setSelectedColor}
+        />
 
         {/* Tallas */}
         <ProductSizes
           product={product}
           selectedSize={selectedSize}
-          selectedColor={selectedColor}
+          enabledSizes={enabledSizes}
           onSelect={setSelectedSize}
         />
 
@@ -93,14 +95,12 @@ export default function ProductCard({ product }: { product: Product }) {
 
         {/* Control + Añadir */}
         <div className="flex flex-col gap-3 mt-1">
-          <ProductQuantity
-            quantity={quantity}
-            onChange={handleQuantityChange}
-          />
+          <ProductQuantity quantity={quantity} max={stock} onChange={handleQuantityChange} />
 
           <ProductAddButton
             onAdd={handleAdd}
-            qty={alreadyInCartQty}
+            qtyInCart={alreadyInCartQty}
+            stock={stock}
           />
         </div>
       </div>

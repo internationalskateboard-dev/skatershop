@@ -4,20 +4,6 @@
  * CartPage
  * ------------------------------------------------------------
  * Página del carrito del usuario.
- *
- * ✅ Qué hace:
- * - Lista todos los items del carrito (Zustand).
- * - Permite aumentar / disminuir cantidad.
- * - Permite quitar un producto.
- * - Muestra talla si el item tiene `size`.
- * - Muestra imagen (con placeholder global).
- * - Muestra total final.
- *
- * ✅ Mejoras de esta versión:
- * - Uso obligatorio de PRODUCT_PLACEHOLDER_IMAGE para no romper la UI.
- * - Precio seguro (Number(...).toFixed(2)).
- * - updateQty protegido: no dejar cantidad < 1.
- * - Comentarios actualizados.
  */
 
 import ClientOnly from "@/components/layout/ClientOnly";
@@ -25,22 +11,13 @@ import useCartStore from "@/store/cartStore";
 import Link from "next/link";
 import Image from "next/image";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "@/lib/constants";
+import { ProductQuantity } from "@/components/product/ProductCard/ProductQuantity";
+import { getSafeQuantity } from "@/lib/cart/quantity";
+import { cssColorFromName } from "@/lib/utils/product/colors";
 
 export default function CartPage() {
-  // extraemos todo el estado que necesitamos
   const { cart, removeFromCart, updateQty, clearCart, total } = useCartStore();
 
-  // helper para actualizar cantidad sin dejarla en 0 o negativo
-  const handleUpdateQty = (id: string, nextQty: number) => {
-    //const maxQty = cart.stock ?? 10;
-    // mínimo 1, máximo maxQty o 10 (se debe ajustar)
-    // return Math.min(maxQty, Math.max(1, next));
-
-    const safeQty = Math.max(1, nextQty);
-    updateQty(id, safeQty);
-  };
-
-  // carrito vacío
   if (cart.length === 0) {
     return (
       <ClientOnly>
@@ -58,14 +35,12 @@ export default function CartPage() {
     );
   }
 
-  // carrito con items
   return (
     <ClientOnly>
       <div className="text-white">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Tu Carrito</h2>
 
-          {/* ✅ Vaciar carrito */}
           <button
             onClick={clearCart}
             className="text-xs font-semibold bg-red-800 border border-red-100 text-neutral-200 px-3 py-2 rounded-lg hover:border-red-500 hover:text-red-300 transition"
@@ -77,7 +52,6 @@ export default function CartPage() {
 
         <ul className="space-y-4">
           {cart.map((it) => {
-            // precio seguro para este item
             const unitPrice = Number(it.price ?? 0);
             const lineTotal = unitPrice * it.qty;
 
@@ -89,41 +63,36 @@ export default function CartPage() {
                 className="flex items-start justify-between border-b border-neutral-800 pb-4"
               >
                 <div className="flex items-start gap-4">
-                  {/* Ver Informacion del producto desde la imagen */}
                   <Link href={`/products/${it.id}`}>
-                    {/* Imagen del producto */}
                     <div className="w-16 h-16 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center overflow-hidden">
                       <Image
                         src={it.image || PRODUCT_PLACEHOLDER_IMAGE}
                         alt={it.name ?? "producto"}
                         width={64}
                         height={64}
+                        unoptimized={it.image?.startsWith("data:")}
                         className="w-full h-full object-cover"
                       />
                     </div>
                   </Link>
 
-                  {/* Info del producto */}
                   <div>
                     <p className="font-semibold leading-snug">
                       {it.name ?? "Producto"}
                     </p>
+
                     {it.size && (
                       <p className="text-xs text-neutral-400">
                         Talla: {it.size}
                       </p>
                     )}
 
-                    {/* Color del producto (si existe) */}
-
                     {it.colorName && (
                       <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-300">
                         <span
                           className="inline-block w-3.5 h-3.5 rounded-full border border-neutral-700"
                           style={{
-                            backgroundColor: it.colorName
-                              ? it.colorName.toLowerCase().replace(/\s+/g, "")
-                              : "#333",
+                            backgroundColor: cssColorFromName(it.colorName),
                           }}
                         />
                         <span className="text-neutral-400">{it.colorName}</span>
@@ -134,28 +103,21 @@ export default function CartPage() {
                       €{unitPrice.toFixed(2)} c/u
                     </p>
 
-                    {/* Controles de cantidad */}
+                    {/* ⭐ CANTIDAD CONTROLADA POR STOCK REAL */}
                     <div className="flex items-center gap-3 mt-2 text-sm">
-                      <button
-                        onClick={() => handleUpdateQty(it.id, it.qty - 1)}
-                        className="w-8 h-8 flex items-center justify-center border border-neutral-700 rounded text-lg hover:border-yellow-400 hover:text-yellow-400 transition"
-                        aria-label="Disminuir cantidad"
-                      >
-                        −
-                      </button>
-                      <span className="w-6 text-center font-semibold">
-                        {it.qty}
-                      </span>
-                      <button
-                        onClick={() => handleUpdateQty(it.id, it.qty + 1)}
-                        className="w-8 h-8 flex items-center justify-center border border-neutral-700 rounded text-lg hover:border-yellow-400 hover:text-yellow-400 transition"
-                        aria-label="Aumentar cantidad"
-                      >
-                        +
-                      </button>
+                      <ProductQuantity
+                        quantity={it.qty}
+                        max={it.stock} // ⭐ importantísimo
+                        onChange={(delta: number) => {
+                          const safe = getSafeQuantity(it, delta);
+                          updateQty(it.id, it.size, it.colorName, safe);
+                        }}
+                      />
 
                       <button
-                        onClick={() => removeFromCart(it.id)}
+                        onClick={() =>
+                          removeFromCart(it.id, it.size, it.colorName)
+                        }
                         className="ml-4 text-xs text-red-400 hover:text-red-300 transition"
                       >
                         Quitar
@@ -164,7 +126,6 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                {/* Total por línea */}
                 <div className="text-right text-yellow-400 font-semibold text-sm min-w-[70px]">
                   €{lineTotal.toFixed(2)}
                 </div>
@@ -173,13 +134,11 @@ export default function CartPage() {
           })}
         </ul>
 
-        {/* Total general */}
         <div className="mt-6 flex justify-between text-lg font-semibold">
           <span>Total:</span>
           <span>€{Number(total() ?? 0).toFixed(2)}</span>
         </div>
 
-        {/* Acciones finales */}
         <div className="mt-8 flex gap-3 flex-wrap">
           <Link
             href="/checkout"

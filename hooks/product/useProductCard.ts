@@ -1,15 +1,14 @@
+// hooks/product/useProductCard.ts
 import { useState, useEffect } from "react";
-import type { Product } from "@/lib/types";
+import type { Product, ProductCardVariants } from "@/lib/types";
 import useCartStore from "@/store/cartStore";
 import { useToast } from "@/hooks/ui/useToast";
-import { getExistingItemQty } from "@/lib/utils/cart/cart";
+import { getExistingItemQty } from "@/lib/cart/cart";
+
 
 export function useProductCard(
   product?: Product,
-  stock: number = 0, // FUTURO: stock aquí YA vendrá descontado (variantStock - soldMap)
-  selectedSize: string | null = null,
-  selectedColor: string | null = null,
-  currentImage: string = ""
+  variants?: ProductCardVariants
 ) {
   // Store
   const { cart, addToCart } = useCartStore((s) => ({
@@ -24,21 +23,31 @@ export function useProductCard(
   const [quantity, setQuantity] = useState(1);
   const [alreadyInCartQty, setAlreadyInCartQty] = useState(0);
 
+  const effectiveStock = variants?.stock ?? 0;
+  const effectiveSize = variants?.selectedSize ?? null;
+  const effectiveColor = variants?.selectedColor ?? null;
+  const effectiveImage = variants?.currentImage ?? "";
+
   // 🔒 SOLO calcular si product existe
   useEffect(() => {
     if (!product) return;
 
-    const qty = getExistingItemQty(product, cart, selectedSize, selectedColor);
+    const qty = getExistingItemQty(
+      product,
+      cart,
+      effectiveSize,
+      effectiveColor
+    );
     setAlreadyInCartQty(qty || 0);
     setQuantity(1);
-  }, [product, cart, selectedSize, selectedColor]);
+  }, [product, cart, effectiveSize, effectiveColor]);
 
   // Cambiar cantidad
   const handleQuantityChange = (delta: number) => {
     setQuantity((q) => {
       const next = q + delta;
 
-      const max = Math.max(1, stock - alreadyInCartQty);
+      const max = Math.max(1, effectiveStock - alreadyInCartQty);
       return Math.min(max, Math.max(1, next));
     });
   };
@@ -47,7 +56,7 @@ export function useProductCard(
   const handleAdd = () => {
     if (!product) return; // ⛔ seguridad
 
-    if (stock < alreadyInCartQty + quantity) {
+    if (effectiveStock < alreadyInCartQty + quantity) {
       setQuantity(1);
       showToast("error", "Ya has añadido todo el stock disponible.");
       return;
@@ -58,10 +67,13 @@ export function useProductCard(
       name: product.name,
       price: product.price,
       qty: quantity,
-      image: currentImage,
-      size: selectedSize ?? undefined,
-      colorName: selectedColor ?? undefined,
+      image: effectiveImage,
+      size: effectiveSize ?? undefined,
+      colorName: effectiveColor ?? undefined,
+      stock: effectiveStock,
     });
+
+    showToast("success", "Producto añadido al carrito.");
   };
 
   return {

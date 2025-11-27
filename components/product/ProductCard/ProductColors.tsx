@@ -1,57 +1,42 @@
-// /components/product/ProductCard/ProductColors.tsx
+// components/product/ProductCard/ProductColors.tsx
 import type { Product } from "@/lib/types";
 import { cssColorFromName } from "@/lib/utils/product/colors";
-import { soldMap } from "@/lib/utils/product/stock/soldMap";
-import { getRealStock } from "@/lib/utils/product/stock/getRealStock";
 
 type Props = {
   product: Product;
-  selectedSize: string | null;
   selectedColor: string | null;
   onSelect: (color: string) => void;
+  enabledColors: string[];
 };
 
-export function ProductColors({ product, selectedColor, onSelect }: Props) {
-  if (!product.colors) return null;
+export function ProductColors({
+  product,
+  selectedColor,
+  onSelect,
+  enabledColors,
+}: Props) {
+  if (!product || !Array.isArray(product.colors)) return null;
 
-  // ------------------------------------------------------------
-  // 1️⃣ Calcular stock real por color (sumando todas sus tallas)
-  // ------------------------------------------------------------
-  const stockByColor: Record<string, number> = {};
+  const colors = product.colors;
+  if (colors.length === 0) return null;
 
-  product.variantStock?.forEach((v) => {
-    const color = v.colorName ?? "UNKNOWN";
-
-    // clave única para ventas reales
-    const key = `${product.id}_${v.colorName}_${v.size}`;
-    const soldUnits = soldMap[key] ?? 0;
-
-    const realStock = getRealStock(v.stock ?? 0, soldUnits);
-
-    if (realStock <= 0) return;
-
-    stockByColor[color] = (stockByColor[color] ?? 0) + realStock;
-  });
-
-  // ------------------------------------------------------------
-  // 2️⃣ Lista de colores que tienen stock real
-  // ------------------------------------------------------------
-  const colorsEnable = Object.entries(stockByColor)
-    .filter(([_, stock]) => stock > 0)
-    .map(([color]) => color);
+  // Normalizamos colores habilitados
+  const enabledNormalized = enabledColors.map((c) => c.toUpperCase());
 
   return (
     <div className="mb-4">
-      {colorsEnable.length > 0 && (
-        <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
-          Colores
-        </p>
-      )}
+      <p className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
+        Colores
+      </p>
 
       <div className="flex items-center gap-2">
-        {product.colors.map((c) => {
-          const enabled = colorsEnable.includes(c.name);
-          const active = selectedColor === c.name;
+        {colors.map((c) => {
+          const normalized = c.name.toUpperCase();
+
+          const enabled = enabledNormalized.includes(normalized);
+          const active =
+            selectedColor &&
+            selectedColor.toUpperCase() === normalized;
 
           return (
             <button
@@ -72,7 +57,9 @@ export function ProductColors({ product, selectedColor, onSelect }: Props) {
                     : "hover:border-yellow-400"
                 }
               `}
-              style={{ backgroundColor: cssColorFromName(c.name) }}
+              style={{
+                backgroundColor: cssColorFromName(c.name),
+              }}
             />
           );
         })}

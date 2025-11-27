@@ -1,8 +1,7 @@
+// store/cartStore.ts
 /**
  * useCartStore (Zustand)
- * - Añadir/actualizar productos del carrito
- * - Persistencia en localStorage
- * - Ahora usando CartItem de lib/types.ts
+ * Manejo del carrito con soporte para talla + color + stock real
  */
 
 import { create } from "zustand";
@@ -11,10 +10,16 @@ import type { CartItem } from "@/lib/types";
 
 type CartState = {
   cart: CartItem[];
+
   addToCart: (item: CartItem) => void;
-  removeFromCart: (id: string) => void;
-  updateQty: (id: string, qty: number) => void;
-  setItemSize: (id: string, size: string) => void;
+  removeFromCart: (id: string, size?: string, colorName?: string) => void;
+  updateQty: (
+    id: string,
+    size: string | undefined,
+    colorName: string | undefined,
+    qty: number
+  ) => void;
+
   clearCart: () => void;
   total: () => number;
   countItems: () => number;
@@ -25,84 +30,99 @@ const useCartStore = create<CartState>()(
     (set, get) => ({
       cart: [],
 
+      // ----------------------------------------------------------
+      // ADD TO CART
+      // ----------------------------------------------------------
       addToCart: (item) =>
         set((state) => {
-          // Buscar si ya existe MISMO producto + MISMA talla + MISMO color
-          const existingIndex = state.cart.findIndex(
+          const idx = state.cart.findIndex(
             (i) =>
               i.id === item.id &&
               i.size === item.size &&
               i.colorName === item.colorName
           );
 
-          // ✅ Si existe esa combinación → solo actualizamos cantidad
-          if (existingIndex !== -1) {
+          if (idx !== -1) {
+            const existing = state.cart[idx];
+            const nextQty = existing.qty + (item.qty || 1);
+
             return {
-              cart: state.cart.map((i, idx) =>
-                idx === existingIndex
+              cart: state.cart.map((i, iIndex) =>
+                iIndex === idx
                   ? {
                       ...i,
-                      qty: i.qty + (item.qty || 1),
-                      image: item.image ?? i.image, // opcional
+                      qty: Math.min(nextQty, existing.stock),
+                      image: item.image ?? i.image,
                     }
                   : i
               ),
             };
           }
 
-          // 🆕 Si NO existe esa combinación (cambia talla o color) → nueva línea
           return {
             cart: [
               ...state.cart,
               {
-                id: item.id,
-                name: item.name,
-                price: item.price,
+                ...item,
                 qty: item.qty || 1,
-                image: item.image || "",
-                size: item.size,
-                colorName: item.colorName,
+                stock: item.stock ?? 0,
               },
             ],
           };
         }),
 
-      removeFromCart: (id) =>
+      // ----------------------------------------------------------
+      // REMOVE
+      // ----------------------------------------------------------
+      removeFromCart: (id, size, colorName) =>
         set((state) => ({
-          cart: state.cart.filter((i) => i.id !== id),
-        })),
-
-      updateQty: (id, qty) =>
-        set((state) => ({
-          cart: state.cart.map((i) =>
-            i.id === id ? { ...i, qty: Math.max(1, qty) } : i
+          cart: state.cart.filter(
+            (i) =>
+              !(
+                i.id === id &&
+                i.size === size &&
+                i.colorName === colorName
+              )
           ),
         })),
 
-      // actualizar talla del item ya añadido
-      setItemSize: (id, size) =>
+      // ----------------------------------------------------------
+      // UPDATE QTY
+      // ----------------------------------------------------------
+      updateQty: (id, size, colorName, qty) =>
         set((state) => ({
-          cart: state.cart.map((i) => (i.id === id ? { ...i, size } : i)),
+          cart: state.cart.map((i) =>
+            i.id === id &&
+            i.size === size &&
+            i.colorName === colorName
+              ? { ...i, qty: Math.min(Math.max(1, qty), i.stock) }
+              : i
+          ),
         })),
 
+      // ----------------------------------------------------------
       clearCart: () => set({ cart: [] }),
 
-      total: () => get().cart.reduce((acc, i) => acc + i.price * i.qty, 0),
+      total: () =>
+        get().cart.reduce((acc, i) => acc + i.price * i.qty, 0),
 
-      countItems: () => get().cart.reduce((acc, i) => acc + i.qty, 0),
+      countItems: () =>
+        get().cart.reduce((acc, i) => acc + i.qty, 0),
     }),
     {
       name: "skater-cart",
-      // 🔑 solo persistimos campos pequeños (sin image)
       partialize: (state) => ({
-        cart: state.cart.map(({ id, name, price, qty, size, colorName }) => ({
-          id,
-          name,
-          price,
-          qty,
-          size,
-          colorName,
-        })),
+        cart: state.cart.map(
+          ({ id, name, price, qty, size, colorName, stock }) => ({
+            id,
+            name,
+            price,
+            qty,
+            size,
+            colorName,
+            stock,
+          })
+        ),
       }),
     }
   )

@@ -7,6 +7,8 @@ import {
   removeProductFromMemory,
 } from "@/lib/server/productsMemory";
 import { mapDbProductToProduct } from "@/lib/server/mappers";
+import { sanitizeProductImages } from "@/lib/utils/product/sanitizeProduct";
+
 
 // GET /api/products/:id
 export async function GET(_req: Request, context: any) {
@@ -26,7 +28,7 @@ export async function GET(_req: Request, context: any) {
     });
 
     if (dbProduct) {
-      const product: Product = mapDbProductToProduct(dbProduct);
+      const product = sanitizeProductImages(mapDbProductToProduct(dbProduct));
       return NextResponse.json(product);
     }
   } catch (err) {

@@ -1,4 +1,4 @@
-
+// lib/utils/product/colors.ts
 /**  
  🔹helper para convertir el nombre del color en algo que entienda CSS
 */

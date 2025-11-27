@@ -7,7 +7,11 @@ import {
   upsertProductInMemory,
 } from "@/lib/server/productsMemory";
 import { prisma } from "@/lib/server/prisma";
-import { mapDbProductToProduct, mapProductToDbData } from "@/lib/server/mappers";
+import {
+  mapDbProductToProduct,
+  mapProductToDbData,
+} from "@/lib/server/mappers";
+import { sanitizeProductImages } from "@/lib/utils/product/sanitizeProduct";
 
 // GET /api/products
 // Opcional: ?source=db | local | memory
@@ -24,23 +28,27 @@ export async function GET(req: Request) {
 
   // 2) Forzado a local (memoria + base)
   if (forcedSource === "local") {
-    const localProducts = [...productsMemory, ...productsBase];
+    const localProducts = [...productsMemory, ...productsBase].map(
+      sanitizeProductImages
+    );
+
     return NextResponse.json({
       products: localProducts,
-    } satisfies ProductsApiResponse);
+    });
   }
 
   // 3) Auto (producción): siempre intentar BD primero
-  try {
-    const dbProducts = await prisma.product.findMany();
+try {
+  const dbProducts = await prisma.product.findMany();
+  const products = dbProducts.map(mapDbProductToProduct).map(sanitizeProductImages);
 
-    // ⚠️ Aunque la tabla esté vacía, devolvemos lo que haya ([]).
-    const products: Product[] = dbProducts.map(mapDbProductToProduct);
-    return NextResponse.json({ products } satisfies ProductsApiResponse);
-  } catch (err) {
-    console.error("[GET /api/products] Error leyendo DB", err);
-    // seguimos abajo con fallback local
-  }
+  return NextResponse.json({ products });
+} catch {
+  // Fallback local
+  const fallback = [...productsMemory, ...productsBase].map(sanitizeProductImages);
+
+  return NextResponse.json({ products: fallback });
+}
 
   // 4) Fallback: solo si la BD falla de verdad
   const fallbackProducts = [...productsMemory, ...productsBase];
@@ -56,10 +64,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Product;
 
     if (!body.id) {
-      return NextResponse.json(
-        { error: "id es requerido" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "id es requerido" }, { status: 400 });
     }
 
     // ------------------------------------------------------------------

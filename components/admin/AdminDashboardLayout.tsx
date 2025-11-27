@@ -8,8 +8,9 @@ import {
   useAdminDataSource,
 } from "@/components/admin/AdminDataSourceContext";
 import AdminStatusBar from "@/components/admin/AdminStatusBar";
+import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 
-function AdminSidebar() {
+function AdminSidebar({ onLogout }: { onLogout: () => void }) {
   const pathname = usePathname();
   const { source, mode } = useAdminDataSource();
   const [open, setOpen] = useState(false);
@@ -23,7 +24,7 @@ function AdminSidebar() {
 
   return (
     <>
-      {/* Header solo móvil */}
+      {/* Header móvil */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-neutral-900 bg-neutral-950 md:hidden">
         <p className="text-sm font-bold text-white">SkaterShop Admin</p>
         <button
@@ -34,17 +35,17 @@ function AdminSidebar() {
         </button>
       </header>
 
-      {/* Sidebar / Drawer */}
+      {/* Sidebar */}
       <aside
         className={`
           fixed left-0 z-40 w-56 bg-neutral-950 border-r border-neutral-900 flex flex-col
-    top-16 bottom-0 md:inset-y-0
-    transform transition-transform duration-200 ease-in-out
-    ${open ? "translate-x-0" : "-translate-x-full"}
-    md:static md:translate-x-0
+          top-16 bottom-0 md:inset-y-0
+          transform transition-transform duration-200 ease-in-out
+          ${open ? "translate-x-0" : "-translate-x-full"}
+          md:static md:translate-x-0
         `}
       >
-        {/* Header desktop (mismos estilos que tenías) */}
+        {/* Header desktop */}
         <div className="px-4 py-4 border-b border-neutral-900 hidden md:block">
           <p className="text-sm font-bold text-white">SkaterShop Admin</p>
           <p className="text-[10px] text-neutral-500 mt-1">
@@ -53,6 +54,7 @@ function AdminSidebar() {
           </p>
         </div>
 
+        {/* Navegación */}
         <nav className="flex-1 py-4">
           {links.map((l) => {
             const active = pathname === l.href;
@@ -60,7 +62,7 @@ function AdminSidebar() {
               <Link
                 key={l.href}
                 href={l.href}
-                onClick={() => setOpen(false)} // cerrar menú en móvil
+                onClick={() => setOpen(false)}
                 className={`flex items-center gap-2 px-4 py-2 text-sm rounded-r-full mr-2 transition-colors ${
                   active
                     ? "bg-neutral-800 text-white"
@@ -74,12 +76,22 @@ function AdminSidebar() {
           })}
         </nav>
 
+        {/* Cerrar sesión */}
+        <div className="px-4 py-3 border-t border-neutral-900">
+          <button
+            onClick={onLogout}
+            className="w-full text-left text-xs text-neutral-400 hover:text-red-300 transition"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+
         <div className="px-4 py-3 text-[10px] text-neutral-600 border-t border-neutral-900">
           v0.1 admin dashboard
         </div>
       </aside>
 
-      {/* Fondo oscuro para el drawer en móvil */}
+      {/* Overlay fondo en móvil */}
       {open && (
         <div
           className="fixed inset-0 z-30 bg-black/50 md:hidden"
@@ -95,10 +107,12 @@ export default function AdminDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { logout } = useAdminAuth();
+
   return (
     <AdminDataSourceProvider>
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col md:flex-row">
-        <AdminSidebar />
+        <AdminSidebar onLogout={logout} />
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           <AdminStatusBar />
           {children}
