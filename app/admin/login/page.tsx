@@ -1,81 +1,87 @@
 // app/admin/login/page.tsx
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAdminAuth } from "@/hooks/admin/useAdminAuth";
+import { useState } from 'react';
+import { ADMIN_AUTH_TOKEN } from '@/lib/admin/constants';
 
-export default function AdminLoginPage() {
-  const router = useRouter();
-  const search = useSearchParams();
-  const { login } = useAdminAuth();
+export default function AdminLogin() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const next = search.get("next") || "/admin";
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      await login(email, password);
-      router.replace(next);
-    } catch (err: any) {
-      setError(err?.message || "No se pudo iniciar sesión");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+    setLoading(true);
+
+    // Login temporal - luego conectaremos con la BD real
+    setTimeout(() => {
+      // Simular login exitoso
+      const userData = {
+        id: 1,
+        email: email,
+        name: 'Administrador',
+        roles: ['admin']
+      };
+
+      localStorage.setItem(ADMIN_AUTH_TOKEN, 'temp-admin-token');
+      localStorage.setItem('admin_user', JSON.stringify(userData));
+      
+      window.location.href = '/admin';
+    }, 1000);
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-950">
-      <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900/70 p-6 shadow-xl">
-        <h1 className="text-xl font-semibold text-white mb-4 text-center">
-          Admin — Iniciar sesión
-        </h1>
-
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-500/60 bg-red-900/40 px-3 py-2 text-sm text-red-100">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block text-sm">
-            <span className="text-neutral-300">Email</span>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Admin Login
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Panel administrativo Skatershop
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          <div>
+            <label htmlFor="email" className="sr-only">
+              Email
+            </label>
             <input
+              id="email"
+              name="email"
               type="email"
-              autoComplete="email"
               required
+              className="relative block w-full border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
             />
-          </label>
-
-          <label className="block text-sm">
-            <span className="text-neutral-300">Contraseña</span>
+          </div>
+          <div>
+            <label htmlFor="password" className="sr-only">
+              Password
+            </label>
             <input
+              id="password"
+              name="password"
               type="password"
-              autoComplete="current-password"
               required
+              className="relative block w-full border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-neutral-950 border border-neutral-700 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
             />
-          </label>
+          </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-2 w-full rounded-lg bg-yellow-400 text-black font-semibold py-2 text-sm hover:bg-yellow-300 disabled:opacity-60"
-          >
-            {submitting ? "Entrando..." : "Entrar al panel"}
-          </button>
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

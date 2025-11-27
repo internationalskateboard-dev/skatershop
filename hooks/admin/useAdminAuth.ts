@@ -1,137 +1,69 @@
-"use client";
+// lib/admin/useAdminAuth.ts
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect } from 'react';
+import { ADMIN_AUTH_TOKEN, ADMIN_USER_DATA } from './constants';
 
-export type AdminUser = {
-  id: number;
-  email: string;
-  fullName?: string | null;
-  roles: string[];
-};
-
-type State = {
-  user: AdminUser | null;
-  accessToken: string | null;
+interface AuthState {
+  isLogged: boolean;
   loading: boolean;
-};
-
-const LS_ADMIN_TOKEN = "skatershop-admin-token";
-
-// Detecta expiración del JWT
-function isExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 < Date.now();
-  } catch {
-    return true;
-  }
+  user: any | null;
 }
 
 export function useAdminAuth() {
-  const [state, setState] = useState<State>({
-    user: null,
-    accessToken: null,
+  const [state, setState] = useState<AuthState>({
+    isLogged: false,
     loading: true,
+    user: null
   });
 
-  // Cargar sesión desde localStorage + validar token
-  const loadFromStorage = useCallback(async () => {
-    const token = localStorage.getItem(LS_ADMIN_TOKEN);
-    if (!token) {
-      setState({ user: null, accessToken: null, loading: false });
-      return;
-    }
-
-    // Si expiró → intentar refresh
-    if (isExpired(token)) {
-      const ok = await tryRefresh();
-      if (!ok) {
-        localStorage.removeItem(LS_ADMIN_TOKEN);
-        setState({ user: null, accessToken: null, loading: false });
-        return;
-      }
-    }
-
-    // Validar token en backend
-    try {
-      const res = await fetch("/api/admin/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        localStorage.removeItem(LS_ADMIN_TOKEN);
-        setState({ user: null, accessToken: null, loading: false });
-        return;
-      }
-
-      const data = await res.json();
-      setState({ user: data.user, accessToken: token, loading: false });
-    } catch {
-      localStorage.removeItem(LS_ADMIN_TOKEN);
-      setState({ user: null, accessToken: null, loading: false });
-    }
+  useEffect(() => {
+    checkAuth();
   }, []);
 
-  // Refresh token
-  async function tryRefresh(): Promise<boolean> {
+  const checkAuth = () => {
     try {
-      const res = await fetch("/api/admin/auth/refresh", { method: "POST" });
-      if (!res.ok) return false;
-
-      const data = await res.json();
-      if (!data.accessToken) return false;
-
-      localStorage.setItem(LS_ADMIN_TOKEN, data.accessToken);
-      return true;
-    } catch {
-      return false;
+      const token = localStorage.getItem(ADMIN_AUTH_TOKEN);
+      const userData = localStorage.getItem(ADMIN_USER_DATA);
+      
+      if (token && userData) {
+        setState({
+          isLogged: true,
+          loading: false,
+          user: JSON.parse(userData)
+        });
+      } else {
+        setState({
+          isLogged: false,
+          loading: false,
+          user: null
+        });
+      }
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      setState({
+        isLogged: false,
+        loading: false,
+        user: null
+      });
     }
-  }
+  };
 
-  // Login
-  async function login(email: string, password: string) {
-    const res = await fetch("/api/admin/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || "Error de autenticación");
-
-    const token = data.accessToken;
-    localStorage.setItem(LS_ADMIN_TOKEN, token);
-
+  const logout = () => {
+    localStorage.removeItem(ADMIN_AUTH_TOKEN);
+    localStorage.removeItem(ADMIN_USER_DATA);
     setState({
-      user: data.user,
-      accessToken: token,
+      isLogged: false,
       loading: false,
+      user: null
     });
-  }
+    window.location.href = '/admin/login';
+  };
 
-  // Logout
-  async function logout() {
-    localStorage.removeItem(LS_ADMIN_TOKEN);
-    setState({ user: null, accessToken: null, loading: false });
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-    } catch {}
-  }
-
-  const isLogged =
-    !!state.user &&
-    !!state.accessToken &&
-    state.user.roles.includes("admin");
-
-  useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
-
-  return {
-    ...state,
-    isLogged,
-    login,
-    logout,
-    reload: loadFromStorage,
+  return { 
+    isLogged: state.isLogged, 
+    loading: state.loading, 
+    user: state.user,
+    logout 
   };
 }

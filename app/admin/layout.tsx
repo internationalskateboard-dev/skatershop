@@ -1,24 +1,27 @@
-import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import AdminDashboardLayout from "@/components/admin/AdminDashboardLayout";
-import { useAdminAuth } from "@/hooks/admin/useAdminAuth";
+// app/admin/layout.tsx
+'use client';
 
-export const metadata = {
-  title: "Admin | SkaterShop",
-};
+import { ReactNode } from 'react';
+import { useAdminAuth } from '@/lib/admin/useAdminAuth';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { isLogged, loading } = useAdminAuth();
 
-  // Mientras carga la sesión → no mostrar el dashboard vacío
   if (loading) {
-    return <div className="p-6">Cargando...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Cargando...</div>
+      </div>
+    );
   }
 
-  // Si no está logueado → redirect
   if (!isLogged) {
-    redirect("/admin/login");
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">No autorizado</div>
+      </div>
+    );
   }
 
-  return <AdminDashboardLayout>{children}</AdminDashboardLayout>;
+  return <>{children}</>;
 }
