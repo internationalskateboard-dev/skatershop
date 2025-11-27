@@ -2,68 +2,50 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ADMIN_AUTH_TOKEN, ADMIN_USER_DATA } from './constants';
 
-interface AuthState {
+interface UseAdminAuthReturn {
   isLogged: boolean;
   loading: boolean;
-  user: any | null;
+  logout: () => void;
+  login: (token: string) => void;
 }
 
-export function useAdminAuth() {
-  const [state, setState] = useState<AuthState>({
-    isLogged: false,
-    loading: true,
-    user: null
-  });
+export const useAdminAuth = (): UseAdminAuthReturn => {
+  const [isLogged, setIsLogged] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // Verificar si hay token al cargar
+    const checkAuth = () => {
+      try {
+        const token = localStorage.getItem('admin_token');
+        setIsLogged(!!token);
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setIsLogged(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     checkAuth();
   }, []);
 
-  const checkAuth = () => {
-    try {
-      const token = localStorage.getItem(ADMIN_AUTH_TOKEN);
-      const userData = localStorage.getItem(ADMIN_USER_DATA);
-      
-      if (token && userData) {
-        setState({
-          isLogged: true,
-          loading: false,
-          user: JSON.parse(userData)
-        });
-      } else {
-        setState({
-          isLogged: false,
-          loading: false,
-          user: null
-        });
-      }
-    } catch (error) {
-      console.error('Error checking auth:', error);
-      setState({
-        isLogged: false,
-        loading: false,
-        user: null
-      });
-    }
+  const login = (token: string) => {
+    localStorage.setItem('admin_token', token);
+    setIsLogged(true);
   };
 
   const logout = () => {
-    localStorage.removeItem(ADMIN_AUTH_TOKEN);
-    localStorage.removeItem(ADMIN_USER_DATA);
-    setState({
-      isLogged: false,
-      loading: false,
-      user: null
-    });
+    localStorage.removeItem('admin_token');
+    setIsLogged(false);
     window.location.href = '/admin/login';
   };
 
-  return { 
-    isLogged: state.isLogged, 
-    loading: state.loading, 
-    user: state.user,
-    logout 
+  return {
+    isLogged,
+    loading,
+    login,
+    logout
   };
-}
+};
