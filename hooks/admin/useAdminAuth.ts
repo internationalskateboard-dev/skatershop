@@ -1,4 +1,4 @@
-// lib/admin/useAdminAuth.ts
+// hooks/admin/useAdminAuth.ts
 'use client';
 
 import { useState, useEffect } from 'react';
